@@ -146,6 +146,19 @@ export default function SimpleMarketingSystem() {
     alert(`✅ Tạo ${newTasks.length} tasks từ "${template.name}"`);
   };
 
+  // PHÂN QUYỀN: Lọc tasks theo role
+  const visibleTasks = useMemo(() => {
+    if (!currentUser) return tasks;
+    
+    if (currentUser.role === 'Manager') {
+      return tasks; // Manager thấy tất cả
+    } else if (currentUser.role === 'Team Lead') {
+      return tasks.filter(t => t.team === currentUser.team); // Team Lead thấy cả team
+    } else {
+      return tasks.filter(t => t.assignee === currentUser.name); // Member chỉ thấy của mình
+    }
+  }, [currentUser, tasks]);
+
   const reportData = useMemo(() => {
     const tasksToUse = visibleTasks;
     const statusStats = [
@@ -174,22 +187,6 @@ export default function SimpleMarketingSystem() {
     const c = { 'Content': 'bg-blue-100 text-blue-700', 'Design': 'bg-purple-100 text-purple-700', 'Performance': 'bg-green-100 text-green-700' };
     return c[t] || 'bg-gray-100';
   };
-
-  // Lọc tasks theo role của user
-  const visibleTasks = useMemo(() => {
-    if (!currentUser) return tasks;
-    
-    if (currentUser.role === 'Manager') {
-      // Manager thấy tất cả tasks
-      return tasks;
-    } else if (currentUser.role === 'Team Lead') {
-      // Team Lead thấy tasks của cả team
-      return tasks.filter(t => t.team === currentUser.team);
-    } else {
-      // Member chỉ thấy tasks của mình
-      return tasks.filter(t => t.assignee === currentUser.name);
-    }
-  }, [currentUser, tasks]);
 
   const handleLogin = (email, password) => {
     const user = allUsers.find(u => u.email === email && u.password === password);
@@ -461,7 +458,6 @@ export default function SimpleMarketingSystem() {
         <p className="text-gray-600">{currentUser.role} • {currentUser.team} Team</p>
       </div>
 
-      {/* Tổng quan */}
       <div className="grid md:grid-cols-4 gap-6">
         {[
           { l: 'Tổng Tasks', v: visibleTasks.length, i: '📊', c: 'blue' },
