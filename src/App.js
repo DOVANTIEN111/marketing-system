@@ -147,22 +147,23 @@ export default function SimpleMarketingSystem() {
   };
 
   const reportData = useMemo(() => {
+    const tasksToUse = visibleTasks;
     const statusStats = [
-      { name: 'Nháp', value: tasks.filter(t => t.status === 'Nháp').length, color: '#9ca3af' },
-      { name: 'Chờ Duyệt', value: tasks.filter(t => t.status === 'Chờ Duyệt').length, color: '#f59e0b' },
-      { name: 'Đã Duyệt', value: tasks.filter(t => t.status === 'Đã Duyệt').length, color: '#10b981' },
-      { name: 'Đang Làm', value: tasks.filter(t => t.status === 'Đang Làm').length, color: '#3b82f6' },
-      { name: 'Hoàn Thành', value: tasks.filter(t => t.status === 'Hoàn Thành').length, color: '#6b7280' }
+      { name: 'Nháp', value: tasksToUse.filter(t => t.status === 'Nháp').length, color: '#9ca3af' },
+      { name: 'Chờ Duyệt', value: tasksToUse.filter(t => t.status === 'Chờ Duyệt').length, color: '#f59e0b' },
+      { name: 'Đã Duyệt', value: tasksToUse.filter(t => t.status === 'Đã Duyệt').length, color: '#10b981' },
+      { name: 'Đang Làm', value: tasksToUse.filter(t => t.status === 'Đang Làm').length, color: '#3b82f6' },
+      { name: 'Hoàn Thành', value: tasksToUse.filter(t => t.status === 'Hoàn Thành').length, color: '#6b7280' }
     ].filter(s => s.value > 0);
 
     const teamStats = ['Content', 'Design', 'Performance'].map(t => ({
       name: t,
-      completed: tasks.filter(x => x.team === t && x.status === 'Hoàn Thành').length,
-      inProgress: tasks.filter(x => x.team === t && x.status === 'Đang Làm').length
+      completed: tasksToUse.filter(x => x.team === t && x.status === 'Hoàn Thành').length,
+      inProgress: tasksToUse.filter(x => x.team === t && x.status === 'Đang Làm').length
     }));
 
     return { statusStats, teamStats };
-  }, [tasks]);
+  }, [visibleTasks]);
 
   const getStatusColor = (s) => {
     const c = { 'Nháp': 'bg-gray-200 text-gray-700', 'Chờ Duyệt': 'bg-yellow-200 text-yellow-800', 'Đã Duyệt': 'bg-green-200 text-green-800', 'Đang Làm': 'bg-blue-200 text-blue-800', 'Hoàn Thành': 'bg-gray-300 text-gray-600' };
@@ -173,6 +174,24 @@ export default function SimpleMarketingSystem() {
     const c = { 'Content': 'bg-blue-100 text-blue-700', 'Design': 'bg-purple-100 text-purple-700', 'Performance': 'bg-green-100 text-green-700' };
     return c[t] || 'bg-gray-100';
   };
+
+  // Lọc tasks theo role của user
+  const getVisibleTasks = () => {
+    if (!currentUser) return tasks;
+    
+    if (currentUser.role === 'Manager') {
+      // Manager thấy tất cả tasks
+      return tasks;
+    } else if (currentUser.role === 'Team Lead') {
+      // Team Lead thấy tasks của cả team
+      return tasks.filter(t => t.team === currentUser.team);
+    } else {
+      // Member chỉ thấy tasks của mình
+      return tasks.filter(t => t.assignee === currentUser.name);
+    }
+  };
+
+  const visibleTasks = getVisibleTasks();
 
   const handleLogin = (email, password) => {
     const user = allUsers.find(u => u.email === email && u.password === password);
@@ -447,10 +466,10 @@ export default function SimpleMarketingSystem() {
       {/* Tổng quan */}
       <div className="grid md:grid-cols-4 gap-6">
         {[
-          { l: 'Tổng Tasks', v: tasks.length, i: '📊', c: 'blue' },
-          { l: 'Hoàn Thành', v: tasks.filter(t => t.status === 'Hoàn Thành').length, i: '✅', c: 'green' },
-          { l: 'Đang Làm', v: tasks.filter(t => t.status === 'Đang Làm').length, i: '⏳', c: 'yellow' },
-          { l: 'Quá Hạn', v: tasks.filter(t => t.isOverdue).length, i: '⚠️', c: 'red' }
+          { l: 'Tổng Tasks', v: visibleTasks.length, i: '📊', c: 'blue' },
+          { l: 'Hoàn Thành', v: visibleTasks.filter(t => t.status === 'Hoàn Thành').length, i: '✅', c: 'green' },
+          { l: 'Đang Làm', v: visibleTasks.filter(t => t.status === 'Đang Làm').length, i: '⏳', c: 'yellow' },
+          { l: 'Quá Hạn', v: visibleTasks.filter(t => t.isOverdue).length, i: '⚠️', c: 'red' }
         ].map((s, i) => (
           <div key={i} className={`bg-${s.c}-50 p-6 rounded-xl border-2 border-${s.c}-200`}>
             <div className="text-3xl mb-2">{s.i}</div>
@@ -471,8 +490,8 @@ export default function SimpleMarketingSystem() {
             { status: 'Đang Làm', icon: '🔨', color: 'bg-blue-100 text-blue-700' },
             { status: 'Hoàn Thành', icon: '✅', color: 'bg-purple-100 text-purple-700' }
           ].map(item => {
-            const count = tasks.filter(t => t.status === item.status).length;
-            const percentage = tasks.length > 0 ? Math.round((count / tasks.length) * 100) : 0;
+            const count = visibleTasks.filter(t => t.status === item.status).length;
+            const percentage = visibleTasks.length > 0 ? Math.round((count / visibleTasks.length) * 100) : 0;
             
             return (
               <div key={item.status} className={`${item.color} p-4 rounded-lg`}>
@@ -524,7 +543,7 @@ export default function SimpleMarketingSystem() {
       <div className="bg-white p-6 rounded-xl shadow">
         <h3 className="text-lg font-bold mb-4">🎯 Tasks Gần Nhất</h3>
         <div className="space-y-3">
-          {tasks.slice(0, 5).map(task => (
+          {visibleTasks.slice(0, 5).map(task => (
             <div 
               key={task.id} 
               onClick={() => {
@@ -554,7 +573,7 @@ export default function SimpleMarketingSystem() {
     const [filterTeam, setFilterTeam] = useState('all');
     const [filterStatus, setFilterStatus] = useState('all');
 
-    const filteredTasks = tasks.filter(t => {
+    const filteredTasks = visibleTasks.filter(t => {
       if (filterTeam !== 'all' && t.team !== filterTeam) return false;
       if (filterStatus !== 'all' && t.status !== filterStatus) return false;
       return true;
@@ -675,7 +694,7 @@ export default function SimpleMarketingSystem() {
               const day = i - 2;
               const date = new Date(today.getFullYear(), today.getMonth(), day);
               const dateStr = date.toISOString().split('T')[0];
-              const dayTasks = tasks.filter(t => t.dueDate === dateStr);
+              const dayTasks = visibleTasks.filter(t => t.dueDate === dateStr);
               
               return (
                 <div
@@ -709,7 +728,7 @@ export default function SimpleMarketingSystem() {
         <div className="mt-6 bg-white p-6 rounded-xl shadow">
           <h3 className="text-lg font-bold mb-4">📌 Tasks Sắp Tới</h3>
           <div className="space-y-3">
-            {tasks
+            {visibleTasks
               .filter(t => new Date(t.dueDate) >= today)
               .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate))
               .slice(0, 5)
@@ -778,11 +797,11 @@ export default function SimpleMarketingSystem() {
     const filteredTasks = useMemo(() => {
       const { startDate, endDate } = getDateRange();
       
-      return tasks.filter(task => {
+      return visibleTasks.filter(task => {
         const taskDate = new Date(task.dueDate);
         return taskDate >= startDate && taskDate <= endDate;
       });
-    }, [tasks, dateRange, customStartDate, customEndDate]);
+    }, [visibleTasks, dateRange, customStartDate, customEndDate]);
 
     // Tính toán stats từ filtered tasks
     const filteredReportData = useMemo(() => {
@@ -811,7 +830,7 @@ export default function SimpleMarketingSystem() {
       const prevEndDate = new Date(startDate.getTime() - 1);
 
       const currentCompleted = filteredTasks.filter(t => t.status === 'Hoàn Thành').length;
-      const prevCompleted = tasks.filter(t => {
+      const prevCompleted = visibleTasks.filter(t => {
         const taskDate = new Date(t.dueDate);
         return taskDate >= prevStartDate && taskDate <= prevEndDate && t.status === 'Hoàn Thành';
       }).length;
@@ -823,7 +842,7 @@ export default function SimpleMarketingSystem() {
         previous: prevCompleted,
         change: Math.round(change)
       };
-    }, [filteredTasks, dateRange, customStartDate, customEndDate]);
+    }, [filteredTasks, visibleTasks, dateRange, customStartDate, customEndDate]);
 
     return (
       <div className="p-6 space-y-6">
