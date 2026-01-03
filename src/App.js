@@ -176,7 +176,7 @@ export default function SimpleMarketingSystem() {
   };
 
   // Lọc tasks theo role của user
-  const getVisibleTasks = () => {
+  const visibleTasks = useMemo(() => {
     if (!currentUser) return tasks;
     
     if (currentUser.role === 'Manager') {
@@ -189,9 +189,7 @@ export default function SimpleMarketingSystem() {
       // Member chỉ thấy tasks của mình
       return tasks.filter(t => t.assignee === currentUser.name);
     }
-  };
-
-  const visibleTasks = getVisibleTasks();
+  }, [currentUser, tasks]);
 
   const handleLogin = (email, password) => {
     const user = allUsers.find(u => u.email === email && u.password === password);
