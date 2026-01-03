@@ -423,14 +423,6 @@ export default function SimpleMarketingSystem() {
                 placeholder="******"
               />
             </div>
-            <div className="bg-blue-50 p-3 rounded-lg text-sm">
-              <div className="font-medium mb-1">💡 Tài khoản demo:</div>
-              <div className="text-xs text-gray-600">
-                Manager: a@company.com / 123456<br />
-                Team Lead: b@company.com / 123456<br />
-                Member: c@company.com / 123456
-              </div>
-            </div>
             <div className="flex gap-3">
               <button
                 onClick={() => setShowLoginModal(false)}
