@@ -1,72 +1,20 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { supabase } from './supabaseClient';
 
 export default function SimpleMarketingSystem() {
-  // Helper functions cho LocalStorage
-  const getFromLocalStorage = (key, defaultValue) => {
-    try {
-      const item = localStorage.getItem(key);
-      return item ? JSON.parse(item) : defaultValue;
-    } catch (error) {
-      console.error('Error reading from localStorage:', error);
-      return defaultValue;
-    }
-  };
-
-  const saveToLocalStorage = (key, value) => {
-    try {
-      localStorage.setItem(key, JSON.stringify(value));
-    } catch (error) {
-      console.error('Error saving to localStorage:', error);
-    }
-  };
-
-  // Default users
-  const defaultUsers = [
-    { id: 1, name: 'Nguyễn Văn A', team: 'Content', email: 'a@company.com', password: '123456', role: 'Manager' },
-    { id: 2, name: 'Trần Thị B', team: 'Content', email: 'b@company.com', password: '123456', role: 'Team Lead' },
-    { id: 3, name: 'Lê Văn C', team: 'Design', email: 'c@company.com', password: '123456', role: 'Member' },
-    { id: 4, name: 'Phạm Thị D', team: 'Performance', email: 'd@company.com', password: '123456', role: 'Member' }
-  ];
-
-  // Default tasks
-  const defaultTasks = [
-    { id: 1, title: 'Viết bài blog sản phẩm', assignee: 'Nguyễn Văn A', team: 'Content', status: 'Chờ Duyệt', dueDate: '2026-01-05', platform: 'Blog', isOverdue: false, comments: [], postLinks: [] },
-    { id: 2, title: 'Banner Facebook Tết', assignee: 'Lê Văn C', team: 'Design', status: 'Hoàn Thành', dueDate: '2026-01-03', platform: 'Facebook', isOverdue: false, comments: [{ user: 'Nguyễn Văn A', text: 'Đẹp lắm, approved!', time: '2026-01-02 14:30' }], postLinks: [{ url: 'https://facebook.com/post/123456', type: 'Facebook', addedBy: 'Lê Văn C', addedAt: '2026-01-03 10:00' }] },
-    { id: 3, title: 'Ads Q1', assignee: 'Phạm Thị D', team: 'Performance', status: 'Đang Làm', dueDate: '2026-01-10', platform: 'Ads', isOverdue: false, comments: [], postLinks: [] },
-    { id: 4, title: 'Video TikTok', assignee: 'Trần Thị B', team: 'Content', status: 'Nháp', dueDate: '2025-12-30', platform: 'TikTok', isOverdue: true, comments: [], postLinks: [] },
-    { id: 5, title: 'Instagram story', assignee: 'Trần Thị B', team: 'Content', status: 'Hoàn Thành', dueDate: '2025-12-28', platform: 'Instagram', isOverdue: false, comments: [], postLinks: [{ url: 'https://instagram.com/p/abc123', type: 'Instagram', addedBy: 'Trần Thị B', addedAt: '2025-12-28 15:30' }] }
-  ];
-
-  // State - Load từ LocalStorage hoặc dùng default
-  const [isLoggedIn, setIsLoggedIn] = useState(() => getFromLocalStorage('isLoggedIn', false));
-  const [currentUser, setCurrentUser] = useState(() => getFromLocalStorage('currentUser', null));
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showRegisterModal, setShowRegisterModal] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [selectedTask, setSelectedTask] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [showCreateTaskModal, setShowCreateTaskModal] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  const [allUsers, setAllUsers] = useState(() => getFromLocalStorage('allUsers', defaultUsers));
-  const [tasks, setTasks] = useState(() => getFromLocalStorage('tasks', defaultTasks));
-
-  // Lưu vào LocalStorage mỗi khi có thay đổi
-  useEffect(() => {
-    saveToLocalStorage('isLoggedIn', isLoggedIn);
-  }, [isLoggedIn]);
-
-  useEffect(() => {
-    saveToLocalStorage('currentUser', currentUser);
-  }, [currentUser]);
-
-  useEffect(() => {
-    saveToLocalStorage('allUsers', allUsers);
-  }, [allUsers]);
-
-  useEffect(() => {
-    saveToLocalStorage('tasks', tasks);
-  }, [tasks]);
+  const [allUsers, setAllUsers] = useState([]);
+  const [tasks, setTasks] = useState([]);
 
   const [templates] = useState([
     { id: 1, name: 'Facebook Ads Campaign', tasks: ['Thiết kế creative', 'Viết copy', 'Setup ads', 'Launch'], team: 'Performance' },
@@ -86,104 +34,304 @@ export default function SimpleMarketingSystem() {
     slack: { on: false, channel: '' }
   });
 
-  const changeStatus = (taskId, newStatus) => {
-    setTasks(tasks.map(t => t.id === taskId ? { ...t, status: newStatus } : t));
-  };
+  // ===================
+  // SUPABASE FUNCTIONS
+  // ===================
 
-  const createNewTask = (title, platform, priority, dueDate, description) => {
-    const newTask = {
-      id: tasks.length + 1,
-      title,
-      assignee: currentUser.name,
-      team: currentUser.team,
-      status: 'Nháp',
-      dueDate,
-      platform,
-      priority,
-      description,
-      isOverdue: false,
-      comments: []
+  // Load data from Supabase on mount
+  useEffect(() => {
+    loadUsers();
+    loadTasks();
+    
+    // Subscribe to realtime task changes
+    const channel = supabase
+      .channel('tasks-changes')
+      .on('postgres_changes', 
+        { event: '*', schema: 'public', table: 'tasks' }, 
+        () => loadTasks()
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
     };
-    setTasks([...tasks, newTask]);
-    alert('✅ Đã tạo task mới!');
-    setShowCreateTaskModal(false);
+  }, []);
+
+  const loadUsers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .order('created_at', { ascending: true });
+      
+      if (error) throw error;
+      setAllUsers(data || []);
+    } catch (error) {
+      console.error('Error loading users:', error);
+    }
   };
 
-  const addComment = (taskId, commentText) => {
+  const loadTasks = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('tasks')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      
+      const formattedTasks = (data || []).map(task => ({
+        id: task.id,
+        title: task.title,
+        assignee: task.assignee,
+        team: task.team,
+        status: task.status,
+        dueDate: task.due_date,
+        platform: task.platform,
+        isOverdue: task.is_overdue,
+        comments: task.comments || [],
+        postLinks: task.post_links || [],
+        priority: task.priority,
+        description: task.description
+      }));
+      
+      setTasks(formattedTasks);
+      setLoading(false);
+    } catch (error) {
+      console.error('Error loading tasks:', error);
+      setLoading(false);
+    }
+  };
+
+  const changeStatus = async (taskId, newStatus) => {
+    try {
+      const { error } = await supabase
+        .from('tasks')
+        .update({ status: newStatus })
+        .eq('id', taskId);
+      
+      if (error) throw error;
+      
+      setTasks(tasks.map(t => t.id === taskId ? { ...t, status: newStatus } : t));
+      if (selectedTask?.id === taskId) {
+        setSelectedTask({ ...selectedTask, status: newStatus });
+      }
+    } catch (error) {
+      console.error('Error updating status:', error);
+      alert('❌ Lỗi khi cập nhật trạng thái!');
+    }
+  };
+
+  const createNewTask = async (title, platform, priority, dueDate, description) => {
+    try {
+      setLoading(true);
+      const { error } = await supabase
+        .from('tasks')
+        .insert([{
+          title,
+          assignee: currentUser.name,
+          team: currentUser.team,
+          status: 'Nháp',
+          due_date: dueDate,
+          platform,
+          priority,
+          description,
+          is_overdue: false,
+          comments: [],
+          post_links: []
+        }]);
+      
+      if (error) throw error;
+      
+      alert('✅ Đã tạo task mới!');
+      setShowCreateTaskModal(false);
+      await loadTasks();
+    } catch (error) {
+      console.error('Error creating task:', error);
+      alert('❌ Lỗi khi tạo task!');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const addComment = async (taskId, commentText) => {
     if (!commentText.trim()) return;
     
-    const now = new Date();
-    const timeStr = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')} ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-    
-    setTasks(tasks.map(t => 
-      t.id === taskId 
-        ? { ...t, comments: [...(t.comments || []), { user: currentUser.name, text: commentText, time: timeStr }] }
-        : t
-    ));
-    
-    if (selectedTask && selectedTask.id === taskId) {
-      setSelectedTask({
-        ...selectedTask,
-        comments: [...(selectedTask.comments || []), { user: currentUser.name, text: commentText, time: timeStr }]
-      });
+    try {
+      const task = tasks.find(t => t.id === taskId);
+      const now = new Date();
+      const timeStr = now.toISOString().slice(0, 16).replace('T', ' ');
+      
+      const newComments = [...(task.comments || []), { 
+        user: currentUser.name, 
+        text: commentText, 
+        time: timeStr 
+      }];
+      
+      const { error } = await supabase
+        .from('tasks')
+        .update({ comments: newComments })
+        .eq('id', taskId);
+      
+      if (error) throw error;
+      
+      setTasks(tasks.map(t => t.id === taskId ? { ...t, comments: newComments } : t));
+      
+      if (selectedTask?.id === taskId) {
+        setSelectedTask({ ...selectedTask, comments: newComments });
+      }
+    } catch (error) {
+      console.error('Error adding comment:', error);
+      alert('❌ Lỗi khi thêm comment!');
     }
   };
 
-  const addPostLink = (taskId, url, type) => {
+  const addPostLink = async (taskId, url, type) => {
     if (!url.trim()) return;
     
-    const now = new Date();
-    const timeStr = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')} ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-    
-    const newLink = {
-      url,
-      type: type || 'Other',
-      addedBy: currentUser.name,
-      addedAt: timeStr
-    };
-    
-    setTasks(tasks.map(t => 
-      t.id === taskId 
-        ? { ...t, postLinks: [...(t.postLinks || []), newLink] }
-        : t
-    ));
-    
-    if (selectedTask && selectedTask.id === taskId) {
-      setSelectedTask({
-        ...selectedTask,
-        postLinks: [...(selectedTask.postLinks || []), newLink]
-      });
+    try {
+      const task = tasks.find(t => t.id === taskId);
+      const now = new Date();
+      const timeStr = now.toISOString().slice(0, 16).replace('T', ' ');
+      
+      const newLink = {
+        url,
+        type: type || 'Other',
+        addedBy: currentUser.name,
+        addedAt: timeStr
+      };
+      
+      const newPostLinks = [...(task.postLinks || []), newLink];
+      
+      const { error } = await supabase
+        .from('tasks')
+        .update({ post_links: newPostLinks })
+        .eq('id', taskId);
+      
+      if (error) throw error;
+      
+      setTasks(tasks.map(t => t.id === taskId ? { ...t, postLinks: newPostLinks } : t));
+      
+      if (selectedTask?.id === taskId) {
+        setSelectedTask({ ...selectedTask, postLinks: newPostLinks });
+      }
+    } catch (error) {
+      console.error('Error adding post link:', error);
+      alert('❌ Lỗi khi thêm link!');
     }
   };
 
-  const removePostLink = (taskId, linkIndex) => {
-    setTasks(tasks.map(t => 
-      t.id === taskId 
-        ? { ...t, postLinks: (t.postLinks || []).filter((_, i) => i !== linkIndex) }
-        : t
-    ));
-    
-    if (selectedTask && selectedTask.id === taskId) {
-      setSelectedTask({
-        ...selectedTask,
-        postLinks: (selectedTask.postLinks || []).filter((_, i) => i !== linkIndex)
-      });
+  const removePostLink = async (taskId, linkIndex) => {
+    try {
+      const task = tasks.find(t => t.id === taskId);
+      const newPostLinks = (task.postLinks || []).filter((_, i) => i !== linkIndex);
+      
+      const { error } = await supabase
+        .from('tasks')
+        .update({ post_links: newPostLinks })
+        .eq('id', taskId);
+      
+      if (error) throw error;
+      
+      setTasks(tasks.map(t => t.id === taskId ? { ...t, postLinks: newPostLinks } : t));
+      
+      if (selectedTask?.id === taskId) {
+        setSelectedTask({ ...selectedTask, postLinks: newPostLinks });
+      }
+    } catch (error) {
+      console.error('Error removing post link:', error);
+      alert('❌ Lỗi khi xóa link!');
     }
   };
 
-  const createFromTemplate = (template) => {
-    const newTasks = template.tasks.map((title, i) => ({
-      id: tasks.length + i + 1,
-      title,
-      assignee: allUsers.find(u => u.team === template.team)?.name,
-      team: template.team,
-      status: 'Nháp',
-      dueDate: new Date(Date.now() + (i + 1) * 86400000).toISOString().split('T')[0],
-      platform: 'Campaign',
-      isOverdue: false
-    }));
-    setTasks([...tasks, ...newTasks]);
-    alert(`✅ Tạo ${newTasks.length} tasks từ "${template.name}"`);
+  const createFromTemplate = async (template) => {
+    try {
+      setLoading(true);
+      const assignee = allUsers.find(u => u.team === template.team)?.name || currentUser.name;
+      
+      const newTasks = template.tasks.map((title, i) => ({
+        title,
+        assignee,
+        team: template.team,
+        status: 'Nháp',
+        due_date: new Date(Date.now() + (i + 1) * 86400000).toISOString().split('T')[0],
+        platform: 'Campaign',
+        is_overdue: false,
+        comments: [],
+        post_links: []
+      }));
+      
+      const { error } = await supabase
+        .from('tasks')
+        .insert(newTasks);
+      
+      if (error) throw error;
+      
+      alert(`✅ Tạo ${newTasks.length} tasks từ "${template.name}"`);
+      await loadTasks();
+    } catch (error) {
+      console.error('Error creating from template:', error);
+      alert('❌ Lỗi khi tạo từ template!');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLogin = async (email, password) => {
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('email', email)
+        .eq('password', password)
+        .single();
+      
+      if (error || !data) {
+        alert('❌ Sai email hoặc mật khẩu!');
+        return;
+      }
+      
+      setCurrentUser(data);
+      setIsLoggedIn(true);
+      setShowLoginModal(false);
+    } catch (error) {
+      console.error('Error logging in:', error);
+      alert('❌ Lỗi khi đăng nhập!');
+    }
+  };
+
+  const handleRegister = async (name, email, password, team, role) => {
+    if (!name || !email || !password || !team || !role) {
+      alert('❌ Vui lòng điền đầy đủ thông tin!');
+      return;
+    }
+    
+    try {
+      const { data: existing } = await supabase
+        .from('users')
+        .select('email')
+        .eq('email', email)
+        .single();
+      
+      if (existing) {
+        alert('❌ Email đã tồn tại!');
+        return;
+      }
+      
+      const { error } = await supabase
+        .from('users')
+        .insert([{ name, email, password, team, role }]);
+      
+      if (error) throw error;
+      
+      alert('✅ Đăng ký thành công! Vui lòng đăng nhập.');
+      setShowRegisterModal(false);
+      setShowLoginModal(true);
+      await loadUsers();
+    } catch (error) {
+      console.error('Error registering:', error);
+      alert('❌ Lỗi khi đăng ký!');
+    }
   };
 
   // PHÂN QUYỀN: Lọc tasks theo role
@@ -191,11 +339,11 @@ export default function SimpleMarketingSystem() {
     if (!currentUser) return tasks;
     
     if (currentUser.role === 'Manager') {
-      return tasks; // Manager thấy tất cả
+      return tasks;
     } else if (currentUser.role === 'Team Lead') {
-      return tasks.filter(t => t.team === currentUser.team); // Team Lead thấy cả team
+      return tasks.filter(t => t.team === currentUser.team);
     } else {
-      return tasks.filter(t => t.assignee === currentUser.name); // Member chỉ thấy của mình
+      return tasks.filter(t => t.assignee === currentUser.name);
     }
   }, [currentUser, tasks]);
 
@@ -226,40 +374,6 @@ export default function SimpleMarketingSystem() {
   const getTeamColor = (t) => {
     const c = { 'Content': 'bg-blue-100 text-blue-700', 'Design': 'bg-purple-100 text-purple-700', 'Performance': 'bg-green-100 text-green-700' };
     return c[t] || 'bg-gray-100';
-  };
-
-  const handleLogin = (email, password) => {
-    const user = allUsers.find(u => u.email === email && u.password === password);
-    if (user) {
-      setCurrentUser(user);
-      setIsLoggedIn(true);
-      setShowLoginModal(false);
-    } else {
-      alert('❌ Sai email hoặc mật khẩu!');
-    }
-  };
-
-  const handleRegister = (name, email, password, team, role) => {
-    if (!name || !email || !password || !team || !role) {
-      alert('❌ Vui lòng điền đầy đủ thông tin!');
-      return;
-    }
-    if (allUsers.find(u => u.email === email)) {
-      alert('❌ Email đã tồn tại!');
-      return;
-    }
-    const newUser = {
-      id: allUsers.length + 1,
-      name,
-      email,
-      password,
-      team,
-      role
-    };
-    setAllUsers([...allUsers, newUser]);
-    alert('✅ Đăng ký thành công! Vui lòng đăng nhập.');
-    setShowRegisterModal(false);
-    setShowLoginModal(true);
   };
 
   const LoginModal = () => {
