@@ -1,9 +1,46 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 export default function SimpleMarketingSystem() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [currentUser, setCurrentUser] = useState(null);
+  // Helper functions cho LocalStorage
+  const getFromLocalStorage = (key, defaultValue) => {
+    try {
+      const item = localStorage.getItem(key);
+      return item ? JSON.parse(item) : defaultValue;
+    } catch (error) {
+      console.error('Error reading from localStorage:', error);
+      return defaultValue;
+    }
+  };
+
+  const saveToLocalStorage = (key, value) => {
+    try {
+      localStorage.setItem(key, JSON.stringify(value));
+    } catch (error) {
+      console.error('Error saving to localStorage:', error);
+    }
+  };
+
+  // Default users
+  const defaultUsers = [
+    { id: 1, name: 'Nguyễn Văn A', team: 'Content', email: 'a@company.com', password: '123456', role: 'Manager' },
+    { id: 2, name: 'Trần Thị B', team: 'Content', email: 'b@company.com', password: '123456', role: 'Team Lead' },
+    { id: 3, name: 'Lê Văn C', team: 'Design', email: 'c@company.com', password: '123456', role: 'Member' },
+    { id: 4, name: 'Phạm Thị D', team: 'Performance', email: 'd@company.com', password: '123456', role: 'Member' }
+  ];
+
+  // Default tasks
+  const defaultTasks = [
+    { id: 1, title: 'Viết bài blog sản phẩm', assignee: 'Nguyễn Văn A', team: 'Content', status: 'Chờ Duyệt', dueDate: '2026-01-05', platform: 'Blog', isOverdue: false, comments: [], postLinks: [] },
+    { id: 2, title: 'Banner Facebook Tết', assignee: 'Lê Văn C', team: 'Design', status: 'Hoàn Thành', dueDate: '2026-01-03', platform: 'Facebook', isOverdue: false, comments: [{ user: 'Nguyễn Văn A', text: 'Đẹp lắm, approved!', time: '2026-01-02 14:30' }], postLinks: [{ url: 'https://facebook.com/post/123456', type: 'Facebook', addedBy: 'Lê Văn C', addedAt: '2026-01-03 10:00' }] },
+    { id: 3, title: 'Ads Q1', assignee: 'Phạm Thị D', team: 'Performance', status: 'Đang Làm', dueDate: '2026-01-10', platform: 'Ads', isOverdue: false, comments: [], postLinks: [] },
+    { id: 4, title: 'Video TikTok', assignee: 'Trần Thị B', team: 'Content', status: 'Nháp', dueDate: '2025-12-30', platform: 'TikTok', isOverdue: true, comments: [], postLinks: [] },
+    { id: 5, title: 'Instagram story', assignee: 'Trần Thị B', team: 'Content', status: 'Hoàn Thành', dueDate: '2025-12-28', platform: 'Instagram', isOverdue: false, comments: [], postLinks: [{ url: 'https://instagram.com/p/abc123', type: 'Instagram', addedBy: 'Trần Thị B', addedAt: '2025-12-28 15:30' }] }
+  ];
+
+  // State - Load từ LocalStorage hoặc dùng default
+  const [isLoggedIn, setIsLoggedIn] = useState(() => getFromLocalStorage('isLoggedIn', false));
+  const [currentUser, setCurrentUser] = useState(() => getFromLocalStorage('currentUser', null));
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showRegisterModal, setShowRegisterModal] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -11,22 +48,25 @@ export default function SimpleMarketingSystem() {
   const [showModal, setShowModal] = useState(false);
   const [showCreateTaskModal, setShowCreateTaskModal] = useState(false);
 
-  const users = [
-    { id: 1, name: 'Nguyễn Văn A', team: 'Content', email: 'a@company.com', password: '123456', role: 'Manager' },
-    { id: 2, name: 'Trần Thị B', team: 'Content', email: 'b@company.com', password: '123456', role: 'Team Lead' },
-    { id: 3, name: 'Lê Văn C', team: 'Design', email: 'c@company.com', password: '123456', role: 'Member' },
-    { id: 4, name: 'Phạm Thị D', team: 'Performance', email: 'd@company.com', password: '123456', role: 'Member' }
-  ];
+  const [allUsers, setAllUsers] = useState(() => getFromLocalStorage('allUsers', defaultUsers));
+  const [tasks, setTasks] = useState(() => getFromLocalStorage('tasks', defaultTasks));
 
-  const [allUsers, setAllUsers] = useState(users);
+  // Lưu vào LocalStorage mỗi khi có thay đổi
+  useEffect(() => {
+    saveToLocalStorage('isLoggedIn', isLoggedIn);
+  }, [isLoggedIn]);
 
-  const [tasks, setTasks] = useState([
-    { id: 1, title: 'Viết bài blog sản phẩm', assignee: 'Nguyễn Văn A', team: 'Content', status: 'Chờ Duyệt', dueDate: '2026-01-05', platform: 'Blog', isOverdue: false, comments: [], postLinks: [] },
-    { id: 2, title: 'Banner Facebook Tết', assignee: 'Lê Văn C', team: 'Design', status: 'Hoàn Thành', dueDate: '2026-01-03', platform: 'Facebook', isOverdue: false, comments: [{ user: 'Nguyễn Văn A', text: 'Đẹp lắm, approved!', time: '2026-01-02 14:30' }], postLinks: [{ url: 'https://facebook.com/post/123456', type: 'Facebook', addedBy: 'Lê Văn C', addedAt: '2026-01-03 10:00' }] },
-    { id: 3, title: 'Ads Q1', assignee: 'Phạm Thị D', team: 'Performance', status: 'Đang Làm', dueDate: '2026-01-10', platform: 'Ads', isOverdue: false, comments: [], postLinks: [] },
-    { id: 4, title: 'Video TikTok', assignee: 'Trần Thị B', team: 'Content', status: 'Nháp', dueDate: '2025-12-30', platform: 'TikTok', isOverdue: true, comments: [], postLinks: [] },
-    { id: 5, title: 'Instagram story', assignee: 'Trần Thị B', team: 'Content', status: 'Hoàn Thành', dueDate: '2025-12-28', platform: 'Instagram', isOverdue: false, comments: [], postLinks: [{ url: 'https://instagram.com/p/abc123', type: 'Instagram', addedBy: 'Trần Thị B', addedAt: '2025-12-28 15:30' }] }
-  ]);
+  useEffect(() => {
+    saveToLocalStorage('currentUser', currentUser);
+  }, [currentUser]);
+
+  useEffect(() => {
+    saveToLocalStorage('allUsers', allUsers);
+  }, [allUsers]);
+
+  useEffect(() => {
+    saveToLocalStorage('tasks', tasks);
+  }, [tasks]);
 
   const [templates] = useState([
     { id: 1, name: 'Facebook Ads Campaign', tasks: ['Thiết kế creative', 'Viết copy', 'Setup ads', 'Launch'], team: 'Performance' },
@@ -1197,6 +1237,36 @@ export default function SimpleMarketingSystem() {
           ))}
         </div>
       </div>
+
+      {/* Reset Data - Chỉ Manager mới thấy */}
+      {currentUser && currentUser.role === 'Manager' && (
+        <div className="mt-6 bg-red-50 border-2 border-red-200 p-6 rounded-xl">
+          <h3 className="font-bold text-lg mb-2 text-red-700">⚠️ Khu Vực Nguy Hiểm</h3>
+          <p className="text-sm text-gray-700 mb-4">
+            Xóa toàn bộ dữ liệu và khôi phục về mặc định. Hành động này KHÔNG THỂ hoàn tác!
+          </p>
+          <button
+            onClick={() => {
+              // eslint-disable-next-line no-restricted-globals
+              if (confirm('⚠️ BẠN CÓ CHẮC CHẮN?\n\nĐiều này sẽ:\n- Xóa TẤT CẢ tasks\n- Xóa TẤT CẢ tài khoản đã tạo\n- Khôi phục về dữ liệu mặc định\n\nHành động này KHÔNG THỂ hoàn tác!')) {
+                // eslint-disable-next-line no-restricted-globals
+                if (confirm('⚠️ XÁC NHẬN LẦN CUỐI!\n\nBạn THỰC SỰ muốn xóa toàn bộ dữ liệu?')) {
+                  // Reset về default
+                  setAllUsers(defaultUsers);
+                  setTasks(defaultTasks);
+                  localStorage.removeItem('allUsers');
+                  localStorage.removeItem('tasks');
+                  alert('✅ Đã khôi phục dữ liệu về mặc định!');
+                  window.location.reload();
+                }
+              }
+            }}
+            className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium"
+          >
+            🗑️ Reset Toàn Bộ Dữ Liệu
+          </button>
+        </div>
+      )}
     </div>
   );
 
@@ -1673,9 +1743,27 @@ export default function SimpleMarketingSystem() {
   return (
     <div className="min-h-screen bg-gray-100">
       <div className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <h1 className="text-3xl font-bold">🎯 Marketing Management</h1>
-          <p className="text-gray-600">Quản lý team hiệu quả</p>
+        <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold">🎯 Marketing Management</h1>
+            <p className="text-gray-600">Quản lý team hiệu quả</p>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="text-right">
+              <div className="font-medium">{currentUser.name}</div>
+              <div className="text-sm text-gray-600">{currentUser.role} • {currentUser.team}</div>
+            </div>
+            <button
+              onClick={() => {
+                setIsLoggedIn(false);
+                setCurrentUser(null);
+                setActiveTab('dashboard');
+              }}
+              className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium text-sm"
+            >
+              🚪 Đăng xuất
+            </button>
+          </div>
         </div>
       </div>
 
