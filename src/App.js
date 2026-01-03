@@ -277,6 +277,24 @@ export default function SimpleMarketingSystem() {
     }
   };
 
+  const deleteTask = async (taskId) => {
+    try {
+      const { error } = await supabase
+        .from('tasks')
+        .delete()
+        .eq('id', taskId);
+      
+      if (error) throw error;
+      
+      setTasks(tasks.filter(t => t.id !== taskId));
+      setShowModal(false);
+      alert('✅ Đã xóa task!');
+    } catch (error) {
+      console.error('Error deleting task:', error);
+      alert('❌ Lỗi khi xóa task!');
+    }
+  };
+
   const handleLogin = async (email, password) => {
     try {
       const { data, error } = await supabase
@@ -1792,6 +1810,18 @@ export default function SimpleMarketingSystem() {
               >
                 Đóng
               </button>
+              {currentUser && (currentUser.role === 'Manager' || selectedTask.assignee === currentUser.name) && (
+                <button
+                  onClick={() => {
+                    if (window.confirm('⚠️ Bạn có chắc chắn muốn xóa task này?\n\nHành động này không thể hoàn tác!')) {
+                      deleteTask(selectedTask.id);
+                    }
+                  }}
+                  className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium"
+                >
+                  🗑️ Xóa
+                </button>
+              )}
               <button
                 onClick={() => {
                   alert('✅ Đã lưu thay đổi!');
@@ -1813,7 +1843,7 @@ export default function SimpleMarketingSystem() {
       <div className="min-h-screen bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 flex items-center justify-center p-4">
         <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full">
           <div className="text-center mb-8">
-            <h1 className="text-4xl font-bold mb-2">🎯 Marketing System</h1>
+            <h1 className="text-4xl font-bold mb-2">🎯 Marketing Hoàng Nam Audio</h1>
             <p className="text-gray-600">Quản lý team marketing hiệu quả</p>
           </div>
           
@@ -1854,7 +1884,7 @@ export default function SimpleMarketingSystem() {
       <div className="bg-white shadow">
         <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-bold">🎯 Marketing Management</h1>
+            <h1 className="text-3xl font-bold">🎯 Marketing Hoàng Nam Audio</h1>
             <p className="text-gray-600">Quản lý team hiệu quả</p>
           </div>
           <div className="flex items-center gap-4">
