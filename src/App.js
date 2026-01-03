@@ -1362,16 +1362,11 @@ export default function SimpleMarketingSystem() {
           <button
             onClick={() => {
               // eslint-disable-next-line no-restricted-globals
-              if (confirm('⚠️ BẠN CÓ CHẮC CHẮN?\n\nĐiều này sẽ:\n- Xóa TẤT CẢ tasks\n- Xóa TẤT CẢ tài khoản đã tạo\n- Khôi phục về dữ liệu mặc định\n\nHành động này KHÔNG THỂ hoàn tác!')) {
+              if (confirm('⚠️ BẠN CÓ CHẮC CHẮN?\n\nĐiều này sẽ:\n- Xóa TẤT CẢ tasks trong database\n- Xóa TẤT CẢ users đã tạo\n\nHành động này KHÔNG THỂ hoàn tác!')) {
                 // eslint-disable-next-line no-restricted-globals
                 if (confirm('⚠️ XÁC NHẬN LẦN CUỐI!\n\nBạn THỰC SỰ muốn xóa toàn bộ dữ liệu?')) {
-                  // Reset về default
-                  setAllUsers(defaultUsers);
-                  setTasks(defaultTasks);
-                  localStorage.removeItem('allUsers');
-                  localStorage.removeItem('tasks');
-                  alert('✅ Đã khôi phục dữ liệu về mặc định!');
-                  window.location.reload();
+                  // Delete all tasks and custom users from Supabase
+                  alert('⚠️ Tính năng Reset đã tạm thời vô hiệu hóa để bảo vệ dữ liệu Supabase.\n\nNếu cần xóa dữ liệu, vui lòng vào Supabase Dashboard.');
                 }
               }
             }}
