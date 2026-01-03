@@ -444,6 +444,7 @@ export default function SimpleMarketingSystem() {
         <p className="text-gray-600">{currentUser.role} • {currentUser.team} Team</p>
       </div>
 
+      {/* Tổng quan */}
       <div className="grid md:grid-cols-4 gap-6">
         {[
           { l: 'Tổng Tasks', v: tasks.length, i: '📊', c: 'blue' },
@@ -457,6 +458,32 @@ export default function SimpleMarketingSystem() {
             <div className="text-sm text-gray-600">{s.l}</div>
           </div>
         ))}
+      </div>
+
+      {/* Chi tiết các trạng thái */}
+      <div className="bg-white p-6 rounded-xl shadow">
+        <h3 className="text-lg font-bold mb-4">📋 Chi Tiết Trạng Thái</h3>
+        <div className="grid md:grid-cols-5 gap-4">
+          {[
+            { status: 'Nháp', icon: '📝', color: 'bg-gray-100 text-gray-700' },
+            { status: 'Chờ Duyệt', icon: '⏳', color: 'bg-yellow-100 text-yellow-700' },
+            { status: 'Đã Duyệt', icon: '👍', color: 'bg-green-100 text-green-700' },
+            { status: 'Đang Làm', icon: '🔨', color: 'bg-blue-100 text-blue-700' },
+            { status: 'Hoàn Thành', icon: '✅', color: 'bg-purple-100 text-purple-700' }
+          ].map(item => {
+            const count = tasks.filter(t => t.status === item.status).length;
+            const percentage = tasks.length > 0 ? Math.round((count / tasks.length) * 100) : 0;
+            
+            return (
+              <div key={item.status} className={`${item.color} p-4 rounded-lg`}>
+                <div className="text-2xl mb-2">{item.icon}</div>
+                <div className="text-2xl font-bold mb-1">{count}</div>
+                <div className="text-xs font-medium mb-1">{item.status}</div>
+                <div className="text-xs opacity-75">{percentage}%</div>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       <div className="grid md:grid-cols-2 gap-6">
