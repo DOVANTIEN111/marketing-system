@@ -468,7 +468,6 @@ export default function SimpleMarketingSystem() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [team, setTeam] = useState('');
-    const [role, setRole] = useState('');
 
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -518,18 +517,11 @@ export default function SimpleMarketingSystem() {
                 <option value="Performance">Performance</option>
               </select>
             </div>
-            <div>
-              <label className="block text-sm font-medium mb-2">Vai trò</label>
-              <select
-                value={role}
-                onChange={(e) => setRole(e.target.value)}
-                className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">Chọn vai trò</option>
-                <option value="Member">Member</option>
-                <option value="Team Lead">Team Lead</option>
-                <option value="Manager">Manager</option>
-              </select>
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <div className="text-sm text-blue-800">
+                ℹ️ Tài khoản mới sẽ được tạo với vai trò <strong>Member</strong>.<br/>
+                Manager có thể thăng cấp vai trò sau.
+              </div>
             </div>
             <div className="flex gap-3">
               <button
@@ -539,7 +531,7 @@ export default function SimpleMarketingSystem() {
                 Hủy
               </button>
               <button
-                onClick={() => handleRegister(name, email, password, team, role)}
+                onClick={() => handleRegister(name, email, password, team, 'Member')}
                 className="flex-1 px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium"
               >
                 Đăng Ký
