@@ -713,90 +713,339 @@ export default function SimpleMarketingSystem() {
     );
   };
 
-  const ReportView = () => (
-    <div className="p-6 space-y-6">
-      <h2 className="text-2xl font-bold">📈 Báo Cáo & Phân Tích</h2>
 
-      <div className="grid md:grid-cols-3 gap-6">
-        {[
-          { l: 'Tỷ Lệ Hoàn Thành', v: `${Math.round((tasks.filter(t => t.status === 'Hoàn Thành').length / tasks.length) * 100)}%`, i: '✅' },
-          { l: 'Tasks Quá Hạn', v: tasks.filter(t => t.isOverdue).length, i: '⚠️' },
-          { l: 'Thành Viên', v: allUsers.length, i: '👥' }
-        ].map((s, i) => (
-          <div key={i} className="bg-white p-6 rounded-xl shadow">
-            <div className="text-3xl mb-2">{s.i}</div>
-            <div className="text-3xl font-bold mb-1">{s.v}</div>
-            <div className="text-sm text-gray-600">{s.l}</div>
+  const ReportView = () => {
+    // State cho filter thời gian
+    const [dateRange, setDateRange] = useState('30days'); // '7days', '30days', 'custom'
+    const [customStartDate, setCustomStartDate] = useState('');
+    const [customEndDate, setCustomEndDate] = useState('');
+
+    // Hàm tính toán khoảng thời gian
+    const getDateRange = () => {
+      const today = new Date();
+      let startDate, endDate;
+
+      if (dateRange === 'today') {
+        startDate = new Date(today.setHours(0, 0, 0, 0));
+        endDate = new Date(today.setHours(23, 59, 59, 999));
+      } else if (dateRange === '7days') {
+        endDate = new Date();
+        startDate = new Date(today.setDate(today.getDate() - 7));
+      } else if (dateRange === '30days') {
+        endDate = new Date();
+        startDate = new Date(today.setDate(today.getDate() - 30));
+      } else if (dateRange === 'custom' && customStartDate && customEndDate) {
+        startDate = new Date(customStartDate);
+        endDate = new Date(customEndDate);
+        endDate.setHours(23, 59, 59, 999);
+      } else {
+        // Mặc định 30 ngày
+        endDate = new Date();
+        startDate = new Date(today.setDate(today.getDate() - 30));
+      }
+
+      return { startDate, endDate };
+    };
+
+    // Lọc tasks theo khoảng thời gian
+    const filteredTasks = useMemo(() => {
+      const { startDate, endDate } = getDateRange();
+      
+      return tasks.filter(task => {
+        const taskDate = new Date(task.dueDate);
+        return taskDate >= startDate && taskDate <= endDate;
+      });
+    }, [tasks, dateRange, customStartDate, customEndDate]);
+
+    // Tính toán stats từ filtered tasks
+    const filteredReportData = useMemo(() => {
+      const statusStats = [
+        { name: 'Nháp', value: filteredTasks.filter(t => t.status === 'Nháp').length, color: '#9ca3af' },
+        { name: 'Chờ Duyệt', value: filteredTasks.filter(t => t.status === 'Chờ Duyệt').length, color: '#f59e0b' },
+        { name: 'Đã Duyệt', value: filteredTasks.filter(t => t.status === 'Đã Duyệt').length, color: '#10b981' },
+        { name: 'Đang Làm', value: filteredTasks.filter(t => t.status === 'Đang Làm').length, color: '#3b82f6' },
+        { name: 'Hoàn Thành', value: filteredTasks.filter(t => t.status === 'Hoàn Thành').length, color: '#6b7280' }
+      ].filter(s => s.value > 0);
+
+      const teamStats = ['Content', 'Design', 'Performance'].map(t => ({
+        name: t,
+        completed: filteredTasks.filter(x => x.team === t && x.status === 'Hoàn Thành').length,
+        inProgress: filteredTasks.filter(x => x.team === t && x.status === 'Đang Làm').length
+      }));
+
+      return { statusStats, teamStats };
+    }, [filteredTasks]);
+
+    // Tính toán % so với kỳ trước
+    const compareWithPrevious = useMemo(() => {
+      const { startDate, endDate } = getDateRange();
+      const duration = endDate - startDate;
+      const prevStartDate = new Date(startDate.getTime() - duration);
+      const prevEndDate = new Date(startDate.getTime() - 1);
+
+      const currentCompleted = filteredTasks.filter(t => t.status === 'Hoàn Thành').length;
+      const prevCompleted = tasks.filter(t => {
+        const taskDate = new Date(t.dueDate);
+        return taskDate >= prevStartDate && taskDate <= prevEndDate && t.status === 'Hoàn Thành';
+      }).length;
+
+      const change = prevCompleted === 0 ? 100 : ((currentCompleted - prevCompleted) / prevCompleted) * 100;
+      
+      return {
+        current: currentCompleted,
+        previous: prevCompleted,
+        change: Math.round(change)
+      };
+    }, [filteredTasks, dateRange, customStartDate, customEndDate]);
+
+    return (
+      <div className="p-6 space-y-6">
+        {/* Header với Date Range Filter */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div>
+            <h2 className="text-2xl font-bold">📈 Báo Cáo & Phân Tích</h2>
+            <p className="text-sm text-gray-600 mt-1">
+              Dữ liệu từ {filteredTasks.length} tasks trong khoảng thời gian đã chọn
+            </p>
           </div>
-        ))}
-      </div>
 
-      <div className="grid md:grid-cols-2 gap-6">
-        <div className="bg-white p-6 rounded-xl shadow">
-          <h3 className="text-lg font-bold mb-4">📊 Phân Bố Trạng Thái</h3>
-          <div className="h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie data={reportData.statusStats} cx="50%" cy="50%" outerRadius={100} dataKey="value" label>
-                  {reportData.statusStats.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip />
-                <Legend />
-              </PieChart>
-            </ResponsiveContainer>
+          {/* Date Range Selector */}
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => setDateRange('today')}
+              className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                dateRange === 'today'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-white text-gray-700 hover:bg-gray-100'
+              }`}
+            >
+              📅 Hôm nay
+            </button>
+            <button
+              onClick={() => setDateRange('7days')}
+              className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                dateRange === '7days'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-white text-gray-700 hover:bg-gray-100'
+              }`}
+            >
+              📅 7 ngày
+            </button>
+            <button
+              onClick={() => setDateRange('30days')}
+              className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                dateRange === '30days'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-white text-gray-700 hover:bg-gray-100'
+              }`}
+            >
+              📅 30 ngày
+            </button>
+            <button
+              onClick={() => setDateRange('custom')}
+              className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                dateRange === 'custom'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-white text-gray-700 hover:bg-gray-100'
+              }`}
+            >
+              🔧 Tùy chỉnh
+            </button>
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-xl shadow">
-          <h3 className="text-lg font-bold mb-4">👥 Hiệu Suất Theo Team</h3>
-          <div className="h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={reportData.teamStats}>
-                <XAxis dataKey="name" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Bar dataKey="completed" fill="#10b981" name="Hoàn thành" />
-                <Bar dataKey="inProgress" fill="#3b82f6" name="Đang làm" />
-              </BarChart>
-            </ResponsiveContainer>
+        {/* Custom Date Range Picker */}
+        {dateRange === 'custom' && (
+          <div className="bg-white p-4 rounded-xl shadow">
+            <div className="grid md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">Từ ngày:</label>
+                <input
+                  type="date"
+                  value={customStartDate}
+                  onChange={(e) => setCustomStartDate(e.target.value)}
+                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">Đến ngày:</label>
+                <input
+                  type="date"
+                  value={customEndDate}
+                  onChange={(e) => setCustomEndDate(e.target.value)}
+                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Stats Cards với So sánh */}
+        <div className="grid md:grid-cols-3 gap-6">
+          <div className="bg-white p-6 rounded-xl shadow">
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-3xl">✅</div>
+              {compareWithPrevious.change !== 0 && (
+                <div className={`flex items-center gap-1 text-sm font-medium ${
+                  compareWithPrevious.change > 0 ? 'text-green-600' : 'text-red-600'
+                }`}>
+                  {compareWithPrevious.change > 0 ? '↑' : '↓'} {Math.abs(compareWithPrevious.change)}%
+                </div>
+              )}
+            </div>
+            <div className="text-3xl font-bold mb-1">
+              {filteredTasks.filter(t => t.status === 'Hoàn Thành').length}
+            </div>
+            <div className="text-sm text-gray-600">Tasks Hoàn Thành</div>
+            <div className="text-xs text-gray-400 mt-1">
+              Kỳ trước: {compareWithPrevious.previous}
+            </div>
+          </div>
+
+          <div className="bg-white p-6 rounded-xl shadow">
+            <div className="text-3xl mb-2">📊</div>
+            <div className="text-3xl font-bold mb-1">
+              {filteredTasks.length > 0 
+                ? Math.round((filteredTasks.filter(t => t.status === 'Hoàn Thành').length / filteredTasks.length) * 100)
+                : 0}%
+            </div>
+            <div className="text-sm text-gray-600">Tỷ Lệ Hoàn Thành</div>
+          </div>
+
+          <div className="bg-white p-6 rounded-xl shadow">
+            <div className="text-3xl mb-2">⚠️</div>
+            <div className="text-3xl font-bold mb-1">
+              {filteredTasks.filter(t => t.isOverdue).length}
+            </div>
+            <div className="text-sm text-gray-600">Tasks Quá Hạn</div>
           </div>
         </div>
-      </div>
 
-      <div className="bg-white p-6 rounded-xl shadow">
-        <h3 className="text-lg font-bold mb-4">🏆 Top Performers</h3>
-        <div className="space-y-3">
-          {Object.entries(
-            tasks
-              .filter(t => t.status === 'Hoàn Thành')
-              .reduce((acc, t) => {
-                acc[t.assignee] = (acc[t.assignee] || 0) + 1;
-                return acc;
-              }, {})
-          )
-            .sort((a, b) => b[1] - a[1])
-            .slice(0, 5)
-            .map(([name, count], i) => (
-              <div key={name} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <div className="text-2xl">{i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '🏅'}</div>
-                  <div>
-                    <div className="font-medium">{name}</div>
-                    <div className="text-sm text-gray-600">
-                      {allUsers.find(u => u.name === name)?.team}
+        {/* Charts */}
+        <div className="grid md:grid-cols-2 gap-6">
+          <div className="bg-white p-6 rounded-xl shadow">
+            <h3 className="text-lg font-bold mb-4">📊 Phân Bố Trạng Thái</h3>
+            {filteredReportData.statusStats.length > 0 ? (
+              <div className="h-80">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie 
+                      data={filteredReportData.statusStats} 
+                      cx="50%" 
+                      cy="50%" 
+                      outerRadius={100} 
+                      dataKey="value" 
+                      label
+                    >
+                      {filteredReportData.statusStats.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                    <Legend />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <div className="h-80 flex items-center justify-center text-gray-400">
+                Không có dữ liệu trong khoảng thời gian này
+              </div>
+            )}
+          </div>
+
+          <div className="bg-white p-6 rounded-xl shadow">
+            <h3 className="text-lg font-bold mb-4">👥 Hiệu Suất Theo Team</h3>
+            {filteredTasks.length > 0 ? (
+              <div className="h-80">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={filteredReportData.teamStats}>
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <Tooltip />
+                    <Legend />
+                    <Bar dataKey="completed" fill="#10b981" name="Hoàn thành" />
+                    <Bar dataKey="inProgress" fill="#3b82f6" name="Đang làm" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <div className="h-80 flex items-center justify-center text-gray-400">
+                Không có dữ liệu trong khoảng thời gian này
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Top Performers trong khoảng thời gian */}
+        <div className="bg-white p-6 rounded-xl shadow">
+          <h3 className="text-lg font-bold mb-4">🏆 Top Performers (Trong Kỳ)</h3>
+          <div className="space-y-3">
+            {Object.entries(
+              filteredTasks
+                .filter(t => t.status === 'Hoàn Thành')
+                .reduce((acc, t) => {
+                  acc[t.assignee] = (acc[t.assignee] || 0) + 1;
+                  return acc;
+                }, {})
+            )
+              .sort((a, b) => b[1] - a[1])
+              .slice(0, 5)
+              .map(([name, count], i) => (
+                <div key={name} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <div className="text-2xl">{i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '🏅'}</div>
+                    <div>
+                      <div className="font-medium">{name}</div>
+                      <div className="text-sm text-gray-600">
+                        {allUsers.find(u => u.name === name)?.team}
+                      </div>
                     </div>
                   </div>
+                  <div className="text-2xl font-bold">{count}</div>
                 </div>
-                <div className="text-2xl font-bold">{count}</div>
+              ))}
+            {filteredTasks.filter(t => t.status === 'Hoàn Thành').length === 0 && (
+              <div className="text-center py-8 text-gray-400">
+                Chưa có task nào hoàn thành trong khoảng thời gian này
               </div>
-            ))}
+            )}
+          </div>
+        </div>
+
+        {/* Summary Statistics */}
+        <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-6 rounded-xl border border-blue-200">
+          <h3 className="text-lg font-bold mb-4">📋 Tổng Quan Theo Thời Gian</h3>
+          <div className="grid md:grid-cols-4 gap-4">
+            <div>
+              <div className="text-sm text-gray-600">Tổng Tasks</div>
+              <div className="text-2xl font-bold">{filteredTasks.length}</div>
+            </div>
+            <div>
+              <div className="text-sm text-gray-600">Hoàn Thành</div>
+              <div className="text-2xl font-bold text-green-600">
+                {filteredTasks.filter(t => t.status === 'Hoàn Thành').length}
+              </div>
+            </div>
+            <div>
+              <div className="text-sm text-gray-600">Đang Làm</div>
+              <div className="text-2xl font-bold text-blue-600">
+                {filteredTasks.filter(t => t.status === 'Đang Làm').length}
+              </div>
+            </div>
+            <div>
+              <div className="text-sm text-gray-600">Tỷ Lệ Thành Công</div>
+              <div className="text-2xl font-bold text-purple-600">
+                {filteredTasks.length > 0 
+                  ? Math.round((filteredTasks.filter(t => t.status === 'Hoàn Thành').length / filteredTasks.length) * 100)
+                  : 0}%
+              </div>
+            </div>
+          </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  };
+
 
   const IntegrationsView = () => (
     <div className="p-6">
