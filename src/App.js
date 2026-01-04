@@ -16,6 +16,11 @@ export default function SimpleMarketingSystem() {
   const [allUsers, setAllUsers] = useState([]);
   const [tasks, setTasks] = useState([]);
 
+  // Notifications state
+  const [notifications, setNotifications] = useState([]);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+
   const [templates] = useState([
     { id: 1, name: 'Facebook Ads Campaign', tasks: ['Thiết kế creative', 'Viết copy', 'Setup ads', 'Launch'], team: 'Performance' },
     { id: 2, name: 'Blog Weekly', tasks: ['Research', 'Viết bài', 'Thiết kế ảnh', 'SEO', 'Đăng bài'], team: 'Content' },
@@ -56,6 +61,16 @@ export default function SimpleMarketingSystem() {
       supabase.removeChannel(channel);
     };
   }, []);
+
+  // Check deadline notifications
+  useEffect(() => {
+    if (!isLoggedIn || !currentUser) return;
+    
+    checkDeadlineNotifications();
+    const interval = setInterval(checkDeadlineNotifications, 30 * 60 * 1000);
+    
+    return () => clearInterval(interval);
+  }, [tasks, currentUser, isLoggedIn]);
 
   const loadUsers = async () => {
     try {
@@ -180,6 +195,18 @@ export default function SimpleMarketingSystem() {
       if (selectedTask?.id === taskId) {
         setSelectedTask({ ...selectedTask, comments: newComments });
       }
+      
+      // Notify task assignee if not self
+      if (task.assignee !== currentUser.name) {
+        addNotification({
+          type: 'comment',
+          taskId: task.id,
+          title: '💬 Comment mới',
+          message: `${currentUser.name} đã comment vào task "${task.title}"`,
+          read: false,
+          createdAt: new Date().toISOString()
+        });
+      }
     } catch (error) {
       console.error('Error adding comment:', error);
       alert('❌ Lỗi khi thêm comment!');
@@ -295,6 +322,111 @@ export default function SimpleMarketingSystem() {
     }
   };
 
+  const changeUserRole = async (userId, newRole) => {
+    if (currentUser.role !== 'Admin') {
+      alert('❌ Chỉ Admin mới có quyền thay đổi vai trò!');
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('users')
+        .update({ role: newRole })
+        .eq('id', userId);
+      
+      if (error) throw error;
+      
+      await loadUsers();
+      alert('✅ Đã thay đổi vai trò!');
+    } catch (error) {
+      console.error('Error changing role:', error);
+      alert('❌ Lỗi khi thay đổi vai trò!');
+    }
+  };
+
+  const deleteUser = async (userId) => {
+    if (currentUser.role !== 'Admin') {
+      alert('❌ Chỉ Admin mới có quyền xóa user!');
+      return;
+    }
+
+    if (userId === currentUser.id) {
+      alert('❌ Không thể xóa chính mình!');
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('users')
+        .delete()
+        .eq('id', userId);
+      
+      if (error) throw error;
+      
+      await loadUsers();
+      alert('✅ Đã xóa user!');
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      alert('❌ Lỗi khi xóa user!');
+    }
+  };
+
+  // Notification functions
+  const addNotification = (notif) => {
+    setNotifications(prev => [notif, ...prev]);
+    setUnreadCount(prev => prev + 1);
+  };
+
+  const markAsRead = (index) => {
+    setNotifications(prev => 
+      prev.map((n, i) => i === index ? { ...n, read: true } : n)
+    );
+    setUnreadCount(prev => Math.max(0, prev - 1));
+  };
+
+  const markAllAsRead = () => {
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    setUnreadCount(0);
+  };
+
+  const deleteNotification = (index) => {
+    const notif = notifications[index];
+    setNotifications(prev => prev.filter((_, i) => i !== index));
+    if (!notif.read) {
+      setUnreadCount(prev => Math.max(0, prev - 1));
+    }
+  };
+
+  const checkDeadlineNotifications = () => {
+    if (!currentUser || !tasks.length) return;
+    
+    const now = new Date();
+    tasks.forEach(task => {
+      if (task.assignee !== currentUser.name) return;
+      if (task.status === 'Hoàn Thành') return;
+      
+      const dueDate = new Date(task.dueDate);
+      const diffHours = (dueDate - now) / (1000 * 60 * 60);
+      
+      if (diffHours > 0 && diffHours <= 24) {
+        const existingNotif = notifications.find(n => 
+          n.type === 'deadline' && n.taskId === task.id
+        );
+        
+        if (!existingNotif) {
+          addNotification({
+            type: 'deadline',
+            taskId: task.id,
+            title: '⏰ Sắp đến deadline',
+            message: `Task "${task.title}" sẽ đến hạn trong ${Math.floor(diffHours)} giờ`,
+            read: false,
+            createdAt: new Date().toISOString()
+          });
+        }
+      }
+    });
+  };
+
   const handleLogin = async (email, password) => {
     try {
       const { data, error } = await supabase
@@ -392,6 +524,83 @@ export default function SimpleMarketingSystem() {
   const getTeamColor = (t) => {
     const c = { 'Content': 'bg-blue-100 text-blue-700', 'Design': 'bg-purple-100 text-purple-700', 'Performance': 'bg-green-100 text-green-700' };
     return c[t] || 'bg-gray-100';
+  };
+
+  const NotificationsDropdown = () => {
+    if (!showNotifications) return null;
+    
+    return (
+      <div className="absolute right-0 top-full mt-2 w-96 bg-white rounded-xl shadow-2xl border z-50 max-h-[500px] overflow-hidden flex flex-col">
+        <div className="p-4 border-b bg-gradient-to-r from-blue-500 to-purple-600 text-white">
+          <div className="flex items-center justify-between">
+            <h3 className="font-bold text-lg">🔔 Thông Báo</h3>
+            {unreadCount > 0 && (
+              <button
+                onClick={markAllAsRead}
+                className="text-sm bg-white/20 hover:bg-white/30 px-3 py-1 rounded-full"
+              >
+                Đánh dấu đã đọc
+              </button>
+            )}
+          </div>
+        </div>
+        
+        <div className="flex-1 overflow-y-auto">
+          {notifications.length === 0 ? (
+            <div className="p-8 text-center text-gray-400">
+              <div className="text-6xl mb-4">🔕</div>
+              <p>Không có thông báo</p>
+            </div>
+          ) : (
+            <div className="divide-y">
+              {notifications.map((notif, index) => (
+                <div
+                  key={index}
+                  className={`p-4 hover:bg-gray-50 cursor-pointer ${!notif.read ? 'bg-blue-50' : ''}`}
+                  onClick={() => markAsRead(index)}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-semibold text-gray-900">{notif.title}</span>
+                        {!notif.read && <span className="w-2 h-2 bg-blue-500 rounded-full"></span>}
+                      </div>
+                      <p className="text-sm text-gray-600">{notif.message}</p>
+                      <p className="text-xs text-gray-400 mt-2">
+                        {new Date(notif.createdAt).toLocaleString('vi-VN')}
+                      </p>
+                    </div>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deleteNotification(index);
+                      }}
+                      className="text-gray-400 hover:text-red-500 text-xl"
+                    >
+                      ×
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        
+        {notifications.length > 0 && (
+          <div className="p-3 border-t bg-gray-50 text-center">
+            <button
+              onClick={() => {
+                setNotifications([]);
+                setUnreadCount(0);
+              }}
+              className="text-sm text-red-600 hover:text-red-700 font-medium"
+            >
+              🗑️ Xóa tất cả
+            </button>
+          </div>
+        )}
+      </div>
+    );
   };
 
   const LoginModal = () => {
@@ -1381,6 +1590,299 @@ export default function SimpleMarketingSystem() {
     </div>
   );
 
+  const UserManagementView = () => {
+    if (currentUser?.role !== 'Admin') {
+      return (
+        <div className="p-6">
+          <div className="bg-red-50 border border-red-200 rounded-xl p-8 text-center">
+            <div className="text-6xl mb-4">🔒</div>
+            <h2 className="text-2xl font-bold text-red-700 mb-2">Không Có Quyền Truy Cập</h2>
+            <p className="text-gray-600">Chỉ Admin mới có thể quản lý users.</p>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="p-6">
+        <div className="mb-6 flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold">👥 Quản Lý Users</h2>
+            <p className="text-gray-600 mt-1">Quản lý tài khoản và phân quyền</p>
+          </div>
+          <div className="bg-blue-50 px-4 py-2 rounded-lg">
+            <span className="text-sm font-medium text-blue-700">
+              Tổng: {allUsers.length} users
+            </span>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl shadow overflow-hidden">
+          <table className="w-full">
+            <thead className="bg-gray-50 border-b">
+              <tr>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Họ Tên</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Email</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Team</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Vai Trò</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Thao Tác</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y">
+              {allUsers.map(user => (
+                <tr key={user.id} className={user.id === currentUser.id ? 'bg-blue-50' : 'hover:bg-gray-50'}>
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">{user.name}</span>
+                      {user.id === currentUser.id && (
+                        <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full">
+                          Bạn
+                        </span>
+                      )}
+                      {user.email === 'dotien.work@gmail.com' && (
+                        <span className="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-full">
+                          👑 Admin Chính
+                        </span>
+                      )}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-600">{user.email}</td>
+                  <td className="px-6 py-4">
+                    <span className={`px-3 py-1 rounded-full text-sm ${
+                      user.team === 'Content' ? 'bg-blue-100 text-blue-700' :
+                      user.team === 'Design' ? 'bg-purple-100 text-purple-700' :
+                      'bg-green-100 text-green-700'
+                    }`}>
+                      {user.team}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4">
+                    <select
+                      value={user.role}
+                      onChange={(e) => {
+                        if (window.confirm(`Thay đổi vai trò của ${user.name} thành ${e.target.value}?`)) {
+                          changeUserRole(user.id, e.target.value);
+                        }
+                      }}
+                      disabled={user.email === 'dotien.work@gmail.com'}
+                      className={`px-3 py-1 rounded-lg text-sm font-medium border-2 ${
+                        user.role === 'Admin' ? 'border-red-200 bg-red-50 text-red-700' :
+                        user.role === 'Manager' ? 'border-purple-200 bg-purple-50 text-purple-700' :
+                        user.role === 'Team Lead' ? 'border-blue-200 bg-blue-50 text-blue-700' :
+                        'border-gray-200 bg-gray-50 text-gray-700'
+                      } ${user.email === 'dotien.work@gmail.com' ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                    >
+                      <option value="Admin">Admin</option>
+                      <option value="Manager">Manager</option>
+                      <option value="Team Lead">Team Lead</option>
+                      <option value="Member">Member</option>
+                    </select>
+                  </td>
+                  <td className="px-6 py-4">
+                    {user.id !== currentUser.id && user.email !== 'dotien.work@gmail.com' && (
+                      <button
+                        onClick={() => {
+                          if (window.confirm(`⚠️ Xóa user "${user.name}"?\n\nHành động này không thể hoàn tác!`)) {
+                            deleteUser(user.id);
+                          }
+                        }}
+                        className="px-3 py-1 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg text-sm font-medium"
+                      >
+                        🗑️ Xóa
+                      </button>
+                    )}
+                    {user.id === currentUser.id && (
+                      <span className="text-xs text-gray-400">Không thể xóa</span>
+                    )}
+                    {user.email === 'dotien.work@gmail.com' && user.id !== currentUser.id && (
+                      <span className="text-xs text-gray-400">🔒 Được bảo vệ</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="mt-6 bg-yellow-50 border border-yellow-200 rounded-xl p-6">
+          <h3 className="font-bold text-yellow-800 mb-2">ℹ️ Hướng Dẫn</h3>
+          <ul className="text-sm text-yellow-700 space-y-1">
+            <li>• <strong>Admin:</strong> Toàn quyền quản lý hệ thống, users, và dữ liệu</li>
+            <li>• <strong>Manager:</strong> Quản lý tất cả tasks, phê duyệt, báo cáo</li>
+            <li>• <strong>Team Lead:</strong> Quản lý tasks của team, phê duyệt team</li>
+            <li>• <strong>Member:</strong> Chỉ quản lý tasks của bản thân</li>
+          </ul>
+        </div>
+      </div>
+    );
+  };
+
+  const PerformanceView = () => {
+    const calculateMetrics = () => {
+      if (!currentUser) return null;
+      const userTasks = visibleTasks.filter(t => t.assignee === currentUser.name);
+      const completed = userTasks.filter(t => t.status === 'Hoàn Thành');
+      const onTime = completed.filter(t => !t.isOverdue);
+      const late = completed.filter(t => t.isOverdue);
+      const inProgress = userTasks.filter(t => ['Nháp', 'Chờ Duyệt', 'Đã Duyệt', 'Đang Làm'].includes(t.status));
+      return {
+        total: userTasks.length,
+        completed: completed.length,
+        onTime: onTime.length,
+        late: late.length,
+        inProgress: inProgress.length,
+        completionRate: userTasks.length > 0 ? Math.round((completed.length / userTasks.length) * 100) : 0,
+        onTimeRate: completed.length > 0 ? Math.round((onTime.length / completed.length) * 100) : 0
+      };
+    };
+
+    const calculateLeaderboard = () => {
+      return allUsers.map(user => {
+        const userTasks = tasks.filter(t => t.assignee === user.name);
+        const completed = userTasks.filter(t => t.status === 'Hoàn Thành');
+        const onTime = completed.filter(t => !t.isOverdue);
+        return {
+          name: user.name,
+          team: user.team,
+          totalTasks: userTasks.length,
+          completed: completed.length,
+          onTime: onTime.length,
+          completionRate: userTasks.length > 0 ? Math.round((completed.length / userTasks.length) * 100) : 0,
+          onTimeRate: completed.length > 0 ? Math.round((onTime.length / completed.length) * 100) : 0
+        };
+      }).sort((a, b) => b.completed - a.completed);
+    };
+
+    const calculateWeeklyTrend = () => {
+      const days = [];
+      const now = new Date();
+      for (let i = 6; i >= 0; i--) {
+        const date = new Date(now);
+        date.setDate(date.getDate() - i);
+        const dateStr = date.toISOString().split('T')[0];
+        const completedCount = tasks.filter(t => {
+          if (currentUser.role !== 'Admin' && currentUser.role !== 'Manager' && t.assignee !== currentUser.name) return false;
+          return t.status === 'Hoàn Thành';
+        }).length;
+        const createdCount = tasks.filter(t => {
+          if (currentUser.role !== 'Admin' && currentUser.role !== 'Manager' && t.assignee !== currentUser.name) return false;
+          return true;
+        }).length;
+        days.push({
+          date: date.toLocaleDateString('vi-VN', { weekday: 'short', day: '2-digit', month: '2-digit' }),
+          completed: completedCount,
+          created: createdCount
+        });
+      }
+      return days;
+    };
+
+    const myMetrics = calculateMetrics();
+    const leaderboard = calculateLeaderboard();
+    const weeklyTrend = calculateWeeklyTrend();
+
+    return (
+      <div className="p-6 space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold">📊 Hiệu Suất Làm Việc</h2>
+            <p className="text-gray-600 mt-1">Thống kê và phân tích hiệu suất</p>
+          </div>
+          <button onClick={() => alert('📊 Xuất báo cáo thành công!')} className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium">
+            📥 Xuất Báo Cáo
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-xl p-6 shadow-lg">
+            <div className="text-sm opacity-90 mb-2">Tổng Tasks</div>
+            <div className="text-4xl font-bold mb-2">{myMetrics?.total || 0}</div>
+            <div className="text-sm opacity-75">Tasks được giao</div>
+          </div>
+          <div className="bg-gradient-to-br from-green-500 to-green-600 text-white rounded-xl p-6 shadow-lg">
+            <div className="text-sm opacity-90 mb-2">Hoàn Thành</div>
+            <div className="text-4xl font-bold mb-2">{myMetrics?.completed || 0}</div>
+            <div className="text-sm opacity-75">{myMetrics?.completionRate || 0}% tỷ lệ</div>
+          </div>
+          <div className="bg-gradient-to-br from-purple-500 to-purple-600 text-white rounded-xl p-6 shadow-lg">
+            <div className="text-sm opacity-90 mb-2">Đúng Hạn</div>
+            <div className="text-4xl font-bold mb-2">{myMetrics?.onTime || 0}</div>
+            <div className="text-sm opacity-75">{myMetrics?.onTimeRate || 0}% đúng deadline</div>
+          </div>
+          <div className="bg-gradient-to-br from-orange-500 to-orange-600 text-white rounded-xl p-6 shadow-lg">
+            <div className="text-sm opacity-90 mb-2">Đang Làm</div>
+            <div className="text-4xl font-bold mb-2">{myMetrics?.inProgress || 0}</div>
+            <div className="text-sm opacity-75">Tasks đang xử lý</div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl shadow p-6">
+          <h3 className="text-xl font-bold mb-4">📈 Xu Hướng 7 Ngày</h3>
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={weeklyTrend}>
+              <XAxis dataKey="date" />
+              <YAxis />
+              <Tooltip />
+              <Legend />
+              <Bar dataKey="created" fill="#3b82f6" name="Tasks mới" />
+              <Bar dataKey="completed" fill="#10b981" name="Hoàn thành" />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+
+        <div className="bg-white rounded-xl shadow overflow-hidden">
+          <div className="p-6 border-b bg-gradient-to-r from-yellow-400 to-orange-500 text-white">
+            <h3 className="text-xl font-bold">🏆 Bảng Xếp Hạng</h3>
+            <p className="text-sm opacity-90 mt-1">Top performers của team</p>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50 border-b">
+                <tr>
+                  <th className="px-6 py-4 text-left text-sm font-semibold">Hạng</th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold">Họ Tên</th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold">Team</th>
+                  <th className="px-6 py-4 text-center text-sm font-semibold">Tasks</th>
+                  <th className="px-6 py-4 text-center text-sm font-semibold">Hoàn Thành</th>
+                  <th className="px-6 py-4 text-center text-sm font-semibold">Tỷ Lệ</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {leaderboard.map((user, index) => (
+                  <tr key={user.name} className={`${index === 0 ? 'bg-yellow-50' : ''} ${index === 1 ? 'bg-gray-50' : ''} ${index === 2 ? 'bg-orange-50' : ''} ${user.name === currentUser?.name ? 'bg-blue-50 font-semibold' : ''} hover:bg-gray-100`}>
+                    <td className="px-6 py-4 text-center">
+                      {index === 0 && <span className="text-2xl">🥇</span>}
+                      {index === 1 && <span className="text-2xl">🥈</span>}
+                      {index === 2 && <span className="text-2xl">🥉</span>}
+                      {index > 2 && <span className="text-gray-500">{index + 1}</span>}
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-2">
+                        <span>{user.name}</span>
+                        {user.name === currentUser?.name && <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full">Bạn</span>}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className={`px-3 py-1 rounded-full text-sm ${user.team === 'Content' ? 'bg-blue-100 text-blue-700' : user.team === 'Design' ? 'bg-purple-100 text-purple-700' : 'bg-green-100 text-green-700'}`}>
+                        {user.team}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-center font-semibold">{user.totalTasks}</td>
+                    <td className="px-6 py-4 text-center"><span className="text-green-600 font-semibold">{user.completed}</span></td>
+                    <td className="px-6 py-4 text-center">
+                      <div className="text-sm font-medium text-green-600">{user.completionRate}% hoàn thành</div>
+                      <div className="text-xs text-purple-600">{user.onTimeRate}% đúng hạn</div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const CreateTaskModal = () => {
     const [title, setTitle] = useState('');
     const [platform, setPlatform] = useState('');
@@ -1827,7 +2329,14 @@ export default function SimpleMarketingSystem() {
       <div className="min-h-screen bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 flex items-center justify-center p-4">
         <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full">
           <div className="text-center mb-8">
-            <h1 className="text-4xl font-bold mb-2">🎯 Marketing Hoàng Nam Audio</h1>
+            <div className="flex justify-center mb-4">
+              <img 
+                src="/logo.png" 
+                alt="Hoàng Nam Audio" 
+                className="h-32 w-auto"
+              />
+            </div>
+            <h1 className="text-3xl font-bold mb-2">Marketing Hoàng Nam Audio</h1>
             <p className="text-gray-600">Quản lý team marketing hiệu quả</p>
           </div>
           
@@ -1867,11 +2376,32 @@ export default function SimpleMarketingSystem() {
     <div className="min-h-screen bg-gray-100">
       <div className="bg-white shadow">
         <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold">🎯 Marketing Hoàng Nam Audio</h1>
-            <p className="text-gray-600">Quản lý team hiệu quả</p>
+          <div className="flex items-center gap-4">
+            <img 
+              src="/logo.png" 
+              alt="Hoàng Nam Audio" 
+              className="h-12 w-auto"
+            />
+            <div>
+              <h1 className="text-2xl font-bold">Marketing Hoàng Nam Audio</h1>
+              <p className="text-gray-600 text-sm">Quản lý team hiệu quả</p>
+            </div>
           </div>
           <div className="flex items-center gap-4">
+            <div className="relative">
+              <button
+                onClick={() => setShowNotifications(!showNotifications)}
+                className="relative p-2 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <span className="text-2xl">🔔</span>
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                )}
+              </button>
+              <NotificationsDropdown />
+            </div>
             <div className="text-right">
               <div className="font-medium">{currentUser.name}</div>
               <div className="text-sm text-gray-600">{currentUser.role} • {currentUser.team}</div>
@@ -1899,7 +2429,9 @@ export default function SimpleMarketingSystem() {
             { id: 'calendar', l: '📅 Lịch' },
             { id: 'report', l: '📈 Báo Cáo' },
             { id: 'integrations', l: '🔗 Tích Hợp' },
-            { id: 'automation', l: '⚙️ Automation' }
+            { id: 'automation', l: '⚙️ Automation' },
+            { id: 'performance', l: '📊 Hiệu Suất' },
+            ...(currentUser.role === 'Admin' ? [{ id: 'users', l: '👥 Users' }] : [])
           ].map(t => (
             <button key={t.id} onClick={() => setActiveTab(t.id)} className={`px-6 py-3 font-medium border-b-4 whitespace-nowrap ${activeTab === t.id ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-600'}`}>
               {t.l}
@@ -1916,6 +2448,8 @@ export default function SimpleMarketingSystem() {
         {activeTab === 'report' && <ReportView />}
         {activeTab === 'integrations' && <IntegrationsView />}
         {activeTab === 'automation' && <AutomationView />}
+        {activeTab === 'users' && <UserManagementView />}
+        {activeTab === 'performance' && <PerformanceView />}
       </div>
 
       {showModal && <TaskModal />}
