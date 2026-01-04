@@ -1885,10 +1885,20 @@ export default function SimpleMarketingSystem() {
 
   const CreateTaskModal = () => {
     const [title, setTitle] = useState('');
-    const [platform, setPlatform] = useState('');
+    const [platform, setPlatform] = useState([]);
     const [priority, setPriority] = useState('');
     const [dueDate, setDueDate] = useState('');
     const [description, setDescription] = useState('');
+
+    const togglePlatform = (plat) => {
+      if (platform.includes(plat)) {
+        setPlatform(platform.filter(p => p !== plat));
+      } else {
+        setPlatform([...platform, plat]);
+      }
+    };
+
+    const platforms = ['Facebook', 'Instagram', 'TikTok', 'Blog', 'Ads', 'Email'];
 
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -1911,20 +1921,30 @@ export default function SimpleMarketingSystem() {
 
             <div className="grid md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium mb-2">Platform *</label>
-                <select
-                  value={platform}
-                  onChange={(e) => setPlatform(e.target.value)}
-                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">Chọn platform</option>
-                  <option value="Facebook">Facebook</option>
-                  <option value="Instagram">Instagram</option>
-                  <option value="TikTok">TikTok</option>
-                  <option value="Blog">Blog</option>
-                  <option value="Ads">Ads</option>
-                  <option value="Email">Email</option>
-                </select>
+                <label className="block text-sm font-medium mb-2">Platform * (Chọn nhiều)</label>
+                <div className="space-y-2 border rounded-lg p-3 max-h-48 overflow-y-auto">
+                  {platforms.map(plat => (
+                    <label key={plat} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-2 rounded">
+                      <input
+                        type="checkbox"
+                        checked={platform.includes(plat)}
+                        onChange={() => togglePlatform(plat)}
+                        className="w-4 h-4 text-blue-600"
+                      />
+                      <span>{plat}</span>
+                    </label>
+                  ))}
+                </div>
+                {platform.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {platform.map(plat => (
+                      <span key={plat} className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm flex items-center gap-1">
+                        {plat}
+                        <button onClick={() => togglePlatform(plat)} className="text-blue-900 hover:text-red-600">×</button>
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div>
@@ -1975,11 +1995,11 @@ export default function SimpleMarketingSystem() {
               </button>
               <button
                 onClick={() => {
-                  if (!title || !platform || !priority || !dueDate) {
+                  if (!title || platform.length === 0 || !priority || !dueDate) {
                     alert('⚠️ Vui lòng điền đầy đủ thông tin bắt buộc!');
                     return;
                   }
-                  createNewTask(title, platform, priority, dueDate, description);
+                  createNewTask(title, platform.join(', '), priority, dueDate, description);
                 }}
                 className="flex-1 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium"
               >
