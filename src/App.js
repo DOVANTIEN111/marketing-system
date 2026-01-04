@@ -922,6 +922,149 @@ export default function SimpleMarketingSystem() {
     );
   };
 
+  const JobDetailModal = () => {
+    if (!selectedJob) return null;
+
+    const updateJobStatus = async (newStatus) => {
+      try {
+        const { error } = await supabase
+          .from('technical_jobs')
+          .update({ status: newStatus })
+          .eq('id', selectedJob.id);
+        
+        if (error) throw error;
+        
+        await loadTechnicalJobs();
+        setSelectedJob({ ...selectedJob, status: newStatus });
+      } catch (error) {
+        console.error('Error updating job status:', error);
+        alert('❌ Lỗi khi cập nhật trạng thái!');
+      }
+    };
+
+    const getStatusColor = (status) => {
+      const colors = {
+        'Chờ XN': 'bg-yellow-100 text-yellow-800',
+        'Đang làm': 'bg-blue-100 text-blue-800',
+        'Hoàn thành': 'bg-green-100 text-green-800',
+        'Hủy': 'bg-gray-100 text-gray-800'
+      };
+      return colors[status] || 'bg-gray-100';
+    };
+
+    return (
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="p-6 border-b bg-gradient-to-r from-orange-500 to-red-600 text-white sticky top-0">
+            <div className="flex justify-between items-start">
+              <div className="flex-1">
+                <h2 className="text-2xl font-bold mb-2">{selectedJob.title}</h2>
+                <div className="flex gap-2">
+                  <span className={`px-3 py-1 rounded-full text-sm ${getStatusColor(selectedJob.status)}`}>
+                    {selectedJob.status}
+                  </span>
+                  <span className="px-3 py-1 bg-white/20 rounded-full text-sm">
+                    {selectedJob.type}
+                  </span>
+                </div>
+              </div>
+              <button 
+                onClick={() => setShowJobModal(false)} 
+                className="text-2xl hover:bg-white/20 w-8 h-8 rounded"
+              >
+                ×
+              </button>
+            </div>
+          </div>
+
+          <div className="p-6 space-y-6">
+            {/* Customer Info */}
+            <div className="bg-blue-50 p-4 rounded-lg">
+              <h3 className="font-bold mb-3 text-lg">👤 Thông tin khách hàng</h3>
+              <div className="space-y-2 text-sm">
+                <div><strong>Tên:</strong> {selectedJob.customerName}</div>
+                <div><strong>Số điện thoại:</strong> {selectedJob.customerPhone}</div>
+                <div><strong>Địa chỉ:</strong> {selectedJob.address}</div>
+              </div>
+            </div>
+
+            {/* Equipment */}
+            {selectedJob.equipment && selectedJob.equipment.length > 0 && (
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <h3 className="font-bold mb-3 text-lg">🎤 Thiết bị</h3>
+                <ul className="list-disc list-inside space-y-1 text-sm">
+                  {selectedJob.equipment.map((item, idx) => (
+                    <li key={idx}>{item}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Schedule */}
+            <div className="bg-orange-50 p-4 rounded-lg">
+              <h3 className="font-bold mb-3 text-lg">📅 Lịch hẹn</h3>
+              <div className="space-y-2 text-sm">
+                <div><strong>Kỹ thuật viên:</strong> {selectedJob.technician}</div>
+                <div><strong>Ngày:</strong> {selectedJob.scheduledDate}</div>
+                <div><strong>Giờ:</strong> {selectedJob.scheduledTime || 'Chưa xác định'}</div>
+              </div>
+            </div>
+
+            {/* Cost */}
+            {selectedJob.estimatedCost > 0 && (
+              <div className="bg-green-50 p-4 rounded-lg">
+                <h3 className="font-bold mb-3 text-lg">💰 Chi phí</h3>
+                <div className="text-sm">
+                  <div><strong>Dự kiến:</strong> {selectedJob.estimatedCost.toLocaleString('vi-VN')} VNĐ</div>
+                </div>
+              </div>
+            )}
+
+            {/* Change Status */}
+            <div className="border-t pt-4">
+              <h3 className="font-bold mb-3">🔄 Thay đổi trạng thái</h3>
+              <div className="flex gap-2 flex-wrap">
+                <button
+                  onClick={() => updateJobStatus('Chờ XN')}
+                  className="px-4 py-2 bg-yellow-100 text-yellow-800 rounded-lg hover:bg-yellow-200 font-medium"
+                >
+                  Chờ XN
+                </button>
+                <button
+                  onClick={() => updateJobStatus('Đang làm')}
+                  className="px-4 py-2 bg-blue-100 text-blue-800 rounded-lg hover:bg-blue-200 font-medium"
+                >
+                  Đang làm
+                </button>
+                <button
+                  onClick={() => updateJobStatus('Hoàn thành')}
+                  className="px-4 py-2 bg-green-100 text-green-800 rounded-lg hover:bg-green-200 font-medium"
+                >
+                  Hoàn thành
+                </button>
+                <button
+                  onClick={() => updateJobStatus('Hủy')}
+                  className="px-4 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 font-medium"
+                >
+                  Hủy
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="p-6 border-t bg-gray-50">
+            <button
+              onClick={() => setShowJobModal(false)}
+              className="w-full px-6 py-3 bg-gray-200 hover:bg-gray-300 rounded-lg font-medium"
+            >
+              Đóng
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const LoginModal = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -1995,6 +2138,10 @@ export default function SimpleMarketingSystem() {
             visibleJobs.map(job => (
               <div
                 key={job.id}
+                onClick={() => {
+                  setSelectedJob(job);
+                  setShowJobModal(true);
+                }}
                 className="bg-white p-6 rounded-xl shadow hover:shadow-lg transition-all cursor-pointer border-l-4 border-orange-500"
               >
                 <div className="flex justify-between items-start mb-3">
@@ -3256,6 +3403,7 @@ export default function SimpleMarketingSystem() {
       {showModal && <TaskModal />}
       {showCreateTaskModal && <CreateTaskModal />}
       {showCreateJobModal && <CreateJobModal />}
+      {showJobModal && <JobDetailModal />}
     </div>
   );
 }
