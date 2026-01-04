@@ -2343,6 +2343,9 @@ export default function SimpleMarketingSystem() {
   );
 
   const UserManagementView = () => {
+    const [showEditUserModal, setShowEditUserModal] = useState(false);
+    const [editingUser, setEditingUser] = useState(null);
+
     if (currentUser?.role !== 'Admin') {
       return (
         <div className="p-6">
@@ -2376,6 +2379,7 @@ export default function SimpleMarketingSystem() {
                 <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Họ Tên</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Email</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Team</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Bộ Phận</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Vai Trò</th>
                 <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Thao Tác</th>
               </tr>
@@ -2409,6 +2413,23 @@ export default function SimpleMarketingSystem() {
                     </span>
                   </td>
                   <td className="px-6 py-4">
+                    <div className="flex gap-1 flex-wrap">
+                      {user.departments && user.departments.includes('marketing') && (
+                        <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full">
+                          📱 Marketing
+                        </span>
+                      )}
+                      {user.departments && user.departments.includes('technical') && (
+                        <span className="px-2 py-1 bg-orange-100 text-orange-700 text-xs rounded-full">
+                          🔧 Kỹ Thuật
+                        </span>
+                      )}
+                      {(!user.departments || user.departments.length === 0) && (
+                        <span className="text-xs text-gray-400">Chưa chọn</span>
+                      )}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
                     <select
                       value={user.role}
                       onChange={(e) => {
@@ -2431,23 +2452,34 @@ export default function SimpleMarketingSystem() {
                     </select>
                   </td>
                   <td className="px-6 py-4">
-                    {user.id !== currentUser.id && user.email !== 'dotien.work@gmail.com' && (
+                    <div className="flex gap-2">
                       <button
                         onClick={() => {
-                          if (window.confirm(`⚠️ Xóa user "${user.name}"?\n\nHành động này không thể hoàn tác!`)) {
-                            deleteUser(user.id);
-                          }
+                          setEditingUser(user);
+                          setShowEditUserModal(true);
                         }}
-                        className="px-3 py-1 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg text-sm font-medium"
+                        className="px-3 py-1 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg text-sm font-medium"
                       >
-                        🗑️ Xóa
+                        ✏️ Bộ Phận
                       </button>
-                    )}
+                      {user.id !== currentUser.id && user.email !== 'dotien.work@gmail.com' && (
+                        <button
+                          onClick={() => {
+                            if (window.confirm(`⚠️ Xóa user "${user.name}"?\n\nHành động này không thể hoàn tác!`)) {
+                              deleteUser(user.id);
+                            }
+                          }}
+                          className="px-3 py-1 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg text-sm font-medium"
+                        >
+                          🗑️ Xóa
+                        </button>
+                      )}
+                    </div>
                     {user.id === currentUser.id && (
-                      <span className="text-xs text-gray-400">Không thể xóa</span>
+                      <span className="text-xs text-gray-400 mt-1 block">Bạn không thể xóa chính mình</span>
                     )}
                     {user.email === 'dotien.work@gmail.com' && user.id !== currentUser.id && (
-                      <span className="text-xs text-gray-400">🔒 Được bảo vệ</span>
+                      <span className="text-xs text-gray-400 mt-1 block">🔒 Tài khoản được bảo vệ</span>
                     )}
                   </td>
                 </tr>
@@ -2464,6 +2496,117 @@ export default function SimpleMarketingSystem() {
             <li>• <strong>Team Lead:</strong> Quản lý tasks của team, phê duyệt team</li>
             <li>• <strong>Member:</strong> Chỉ quản lý tasks của bản thân</li>
           </ul>
+        </div>
+
+        {/* Edit Departments Modal */}
+        {showEditUserModal && editingUser && (
+          <EditUserDepartmentsModal 
+            user={editingUser}
+            onClose={() => {
+              setShowEditUserModal(false);
+              setEditingUser(null);
+            }}
+            onSave={async (departments) => {
+              try {
+                const { error } = await supabase
+                  .from('users')
+                  .update({ departments })
+                  .eq('id', editingUser.id);
+                
+                if (error) throw error;
+                
+                alert('✅ Đã cập nhật bộ phận!');
+                await loadUsers();
+                setShowEditUserModal(false);
+                setEditingUser(null);
+              } catch (error) {
+                console.error('Error updating departments:', error);
+                alert('❌ Lỗi khi cập nhật bộ phận!');
+              }
+            }}
+          />
+        )}
+      </div>
+    );
+  };
+
+  const EditUserDepartmentsModal = ({ user, onClose, onSave }) => {
+    const [departments, setDepartments] = useState(user.departments || []);
+
+    const toggleDepartment = (dept) => {
+      if (departments.includes(dept)) {
+        setDepartments(departments.filter(d => d !== dept));
+      } else {
+        setDepartments([...departments, dept]);
+      }
+    };
+
+    return (
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-xl max-w-md w-full">
+          <div className="p-6 border-b bg-gradient-to-r from-blue-500 to-purple-600 text-white">
+            <h2 className="text-2xl font-bold">✏️ Chỉnh Sửa Bộ Phận</h2>
+            <p className="text-sm mt-1 opacity-90">{user.name}</p>
+          </div>
+
+          <div className="p-6 space-y-4">
+            <p className="text-sm text-gray-600 mb-4">
+              Chọn bộ phận mà user này có thể làm việc:
+            </p>
+
+            <label className="flex items-center gap-3 p-4 border-2 rounded-lg cursor-pointer hover:bg-blue-50 transition-colors">
+              <input
+                type="checkbox"
+                checked={departments.includes('marketing')}
+                onChange={() => toggleDepartment('marketing')}
+                className="w-5 h-5 text-blue-600"
+              />
+              <div className="flex-1">
+                <div className="font-medium">📱 Marketing</div>
+                <div className="text-sm text-gray-500">Quản lý tasks marketing, content, ads</div>
+              </div>
+            </label>
+
+            <label className="flex items-center gap-3 p-4 border-2 rounded-lg cursor-pointer hover:bg-orange-50 transition-colors">
+              <input
+                type="checkbox"
+                checked={departments.includes('technical')}
+                onChange={() => toggleDepartment('technical')}
+                className="w-5 h-5 text-orange-600"
+              />
+              <div className="flex-1">
+                <div className="font-medium">🔧 Kỹ Thuật</div>
+                <div className="text-sm text-gray-500">Lắp đặt, bảo trì, sửa chữa thiết bị</div>
+              </div>
+            </label>
+
+            {departments.length === 0 && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm text-yellow-700">
+                ⚠️ Vui lòng chọn ít nhất 1 bộ phận
+              </div>
+            )}
+          </div>
+
+          <div className="p-6 border-t bg-gray-50 flex gap-3">
+            <button
+              onClick={onClose}
+              className="flex-1 px-6 py-3 bg-gray-200 hover:bg-gray-300 rounded-lg font-medium"
+            >
+              Hủy
+            </button>
+            <button
+              onClick={() => {
+                if (departments.length === 0) {
+                  alert('⚠️ Vui lòng chọn ít nhất 1 bộ phận!');
+                  return;
+                }
+                onSave(departments);
+              }}
+              className="flex-1 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium"
+            >
+              ✅ Lưu
+            </button>
+          </div>
         </div>
       </div>
     );
