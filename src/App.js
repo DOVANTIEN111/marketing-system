@@ -1091,7 +1091,13 @@ export default function SimpleMarketingSystem() {
             {Array.from({ length: 35 }, (_, i) => {
               const day = i - 2;
               const date = new Date(today.getFullYear(), today.getMonth(), day);
-              const dateStr = date.toISOString().split('T')[0];
+              
+              // Fix: Dùng local date string thay vì UTC
+              const year = date.getFullYear();
+              const month = String(date.getMonth() + 1).padStart(2, '0');
+              const dayNum = String(date.getDate()).padStart(2, '0');
+              const dateStr = `${year}-${month}-${dayNum}`;
+              
               const dayTasks = visibleTasks.filter(t => t.dueDate === dateStr);
               
               return (
