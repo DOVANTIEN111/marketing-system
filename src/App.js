@@ -7,14 +7,19 @@ export default function SimpleMarketingSystem() {
   const [currentUser, setCurrentUser] = useState(null);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showRegisterModal, setShowRegisterModal] = useState(false);
+  const [activeModule, setActiveModule] = useState('marketing');
   const [activeTab, setActiveTab] = useState('dashboard');
   const [selectedTask, setSelectedTask] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [showCreateTaskModal, setShowCreateTaskModal] = useState(false);
+  const [showCreateJobModal, setShowCreateJobModal] = useState(false);
+  const [selectedJob, setSelectedJob] = useState(null);
+  const [showJobModal, setShowJobModal] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const [allUsers, setAllUsers] = useState([]);
   const [tasks, setTasks] = useState([]);
+  const [technicalJobs, setTechnicalJobs] = useState([]);
 
   // Notifications state
   const [notifications, setNotifications] = useState([]);
@@ -65,9 +70,10 @@ export default function SimpleMarketingSystem() {
   useEffect(() => {
     loadUsers();
     loadTasks();
+    loadTechnicalJobs();
     
     // Subscribe to realtime task changes
-    const channel = supabase
+    const tasksChannel = supabase
       .channel('tasks-changes')
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'tasks' }, 
@@ -75,8 +81,18 @@ export default function SimpleMarketingSystem() {
       )
       .subscribe();
 
+    // Subscribe to realtime technical jobs changes
+    const jobsChannel = supabase
+      .channel('jobs-changes')
+      .on('postgres_changes', 
+        { event: '*', schema: 'public', table: 'technical_jobs' }, 
+        () => loadTechnicalJobs()
+      )
+      .subscribe();
+
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(tasksChannel);
+      supabase.removeChannel(jobsChannel);
     };
   }, []);
 
@@ -133,6 +149,43 @@ export default function SimpleMarketingSystem() {
     } catch (error) {
       console.error('Error loading tasks:', error);
       setLoading(false);
+    }
+  };
+
+  const loadTechnicalJobs = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('technical_jobs')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      
+      const formattedJobs = (data || []).map(job => ({
+        id: job.id,
+        title: job.title,
+        type: job.type,
+        customerName: job.customer_name,
+        customerPhone: job.customer_phone,
+        address: job.address,
+        equipment: job.equipment || [],
+        technician: job.technician,
+        scheduledDate: job.scheduled_date,
+        scheduledTime: job.scheduled_time,
+        estimatedCost: job.estimated_cost,
+        actualCost: job.actual_cost,
+        status: job.status,
+        photosBefore: job.photos_before || [],
+        photosAfter: job.photos_after || [],
+        customerRating: job.customer_rating,
+        customerFeedback: job.customer_feedback,
+        technicianNotes: job.technician_notes,
+        createdAt: job.created_at
+      }));
+      
+      setTechnicalJobs(formattedJobs);
+    } catch (error) {
+      console.error('Error loading technical jobs:', error);
     }
   };
 
@@ -199,6 +252,56 @@ export default function SimpleMarketingSystem() {
     } catch (error) {
       console.error('Error creating task:', error);
       alert('❌ Lỗi khi tạo task!');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const createTechnicalJob = async (jobData) => {
+    try {
+      setLoading(true);
+      
+      const { error } = await supabase
+        .from('technical_jobs')
+        .insert([{
+          title: jobData.title,
+          type: jobData.type,
+          customer_name: jobData.customerName,
+          customer_phone: jobData.customerPhone,
+          address: jobData.address,
+          equipment: jobData.equipment,
+          technician: jobData.technician,
+          scheduled_date: jobData.scheduledDate,
+          scheduled_time: jobData.scheduledTime,
+          estimated_cost: jobData.estimatedCost,
+          status: 'Chờ XN',
+          photos_before: [],
+          photos_after: [],
+          customer_rating: null,
+          customer_feedback: '',
+          technician_notes: ''
+        }]);
+      
+      if (error) throw error;
+      
+      // Notify technician if different from creator
+      if (jobData.technician !== currentUser.name) {
+        addNotification({
+          type: 'assigned',
+          taskId: null,
+          title: '🔧 Công việc mới',
+          message: `${currentUser.name} đã giao công việc: "${jobData.title}"`,
+          read: false,
+          createdAt: new Date().toISOString()
+        });
+      }
+      
+      alert('✅ Đã tạo công việc kỹ thuật!');
+      setShowCreateJobModal(false);
+      await loadTechnicalJobs();
+    } catch (error) {
+      console.error('Error creating technical job:', error);
+      alert('❌ Lỗi khi tạo công việc!');
     } finally {
       setLoading(false);
     }
@@ -638,6 +741,194 @@ export default function SimpleMarketingSystem() {
             </button>
           </div>
         )}
+      </div>
+    );
+  };
+
+  const CreateJobModal = () => {
+    const [title, setTitle] = useState('');
+    const [type, setType] = useState('Lắp đặt');
+    const [customerName, setCustomerName] = useState('');
+    const [customerPhone, setCustomerPhone] = useState('');
+    const [address, setAddress] = useState('');
+    const [equipment, setEquipment] = useState('');
+    const [technician, setTechnician] = useState(currentUser.name);
+    const [scheduledDate, setScheduledDate] = useState('');
+    const [scheduledTime, setScheduledTime] = useState('');
+    const [estimatedCost, setEstimatedCost] = useState('');
+
+    const getTechnicalUsers = () => {
+      // Users có department technical
+      return allUsers.filter(u => 
+        u.departments && u.departments.includes('technical')
+      );
+    };
+
+    const technicalUsers = getTechnicalUsers();
+
+    if (!showCreateJobModal) return null;
+
+    return (
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="p-6 border-b bg-gradient-to-r from-orange-500 to-red-600 text-white sticky top-0">
+            <div className="flex justify-between items-center">
+              <h2 className="text-2xl font-bold">🔧 Tạo Công Việc Kỹ Thuật</h2>
+              <button onClick={() => setShowCreateJobModal(false)} className="text-2xl hover:bg-white/20 w-8 h-8 rounded">×</button>
+            </div>
+          </div>
+
+          <div className="p-6 space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">Tiêu đề *</label>
+              <input
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="VD: Lắp dàn karaoke - Quán ABC"
+                className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">Loại công việc *</label>
+              <select
+                value={type}
+                onChange={(e) => setType(e.target.value)}
+                className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+              >
+                <option value="Lắp đặt">Lắp đặt mới</option>
+                <option value="Bảo trì">Bảo trì/Bảo dưỡng</option>
+                <option value="Sửa chữa">Sửa chữa</option>
+                <option value="Nâng cấp">Nâng cấp</option>
+              </select>
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">Tên khách hàng *</label>
+                <input
+                  type="text"
+                  value={customerName}
+                  onChange={(e) => setCustomerName(e.target.value)}
+                  placeholder="Anh/Chị..."
+                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">Số điện thoại *</label>
+                <input
+                  type="tel"
+                  value={customerPhone}
+                  onChange={(e) => setCustomerPhone(e.target.value)}
+                  placeholder="0909..."
+                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">Địa chỉ *</label>
+              <input
+                type="text"
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                placeholder="123 Đường ABC, Quận XYZ..."
+                className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">Thiết bị</label>
+              <textarea
+                value={equipment}
+                onChange={(e) => setEquipment(e.target.value)}
+                placeholder="VD: Dàn karaoke Paramax, Loa sub 18 inch x2, Micro..."
+                className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                rows="3"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">👤 Kỹ thuật viên *</label>
+              <select
+                value={technician}
+                onChange={(e) => setTechnician(e.target.value)}
+                className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+              >
+                {technicalUsers.map(user => (
+                  <option key={user.id} value={user.name}>
+                    {user.name} - {user.team}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="grid md:grid-cols-3 gap-4">
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium mb-2">Ngày hẹn *</label>
+                <input
+                  type="date"
+                  value={scheduledDate}
+                  onChange={(e) => setScheduledDate(e.target.value)}
+                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">Giờ</label>
+                <input
+                  type="time"
+                  value={scheduledTime}
+                  onChange={(e) => setScheduledTime(e.target.value)}
+                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">Chi phí dự kiến (VNĐ)</label>
+              <input
+                type="number"
+                value={estimatedCost}
+                onChange={(e) => setEstimatedCost(e.target.value)}
+                placeholder="25000000"
+                className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+              />
+            </div>
+          </div>
+
+          <div className="p-6 border-t bg-gray-50 flex gap-3">
+            <button
+              onClick={() => setShowCreateJobModal(false)}
+              className="flex-1 px-6 py-3 bg-gray-200 hover:bg-gray-300 rounded-lg font-medium"
+            >
+              Hủy
+            </button>
+            <button
+              onClick={() => {
+                if (!title || !customerName || !customerPhone || !address || !scheduledDate) {
+                  alert('⚠️ Vui lòng điền đầy đủ thông tin bắt buộc!');
+                  return;
+                }
+                createTechnicalJob({
+                  title,
+                  type,
+                  customerName,
+                  customerPhone,
+                  address,
+                  equipment: equipment ? equipment.split(',').map(e => e.trim()) : [],
+                  technician,
+                  scheduledDate,
+                  scheduledTime: scheduledTime || '09:00',
+                  estimatedCost: estimatedCost ? parseFloat(estimatedCost) : 0
+                });
+              }}
+              className="flex-1 px-6 py-3 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-medium"
+            >
+              ✅ Tạo Công Việc
+            </button>
+          </div>
+        </div>
       </div>
     );
   };
@@ -1672,6 +1963,96 @@ export default function SimpleMarketingSystem() {
               </div>
             </div>
           </div>
+        </div>
+      </div>
+    );
+  };
+
+  const TechnicalJobsView = () => {
+    const visibleJobs = technicalJobs.filter(job => {
+      if (currentUser.role === 'Admin') return true;
+      return job.technician === currentUser.name;
+    });
+
+    const getStatusColor = (status) => {
+      const colors = {
+        'Chờ XN': 'bg-yellow-100 text-yellow-800',
+        'Đang làm': 'bg-blue-100 text-blue-800',
+        'Hoàn thành': 'bg-green-100 text-green-800',
+        'Hủy': 'bg-gray-100 text-gray-800'
+      };
+      return colors[status] || 'bg-gray-100';
+    };
+
+    return (
+      <div className="p-6">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-2xl font-bold">🔧 Công Việc Kỹ Thuật</h2>
+          <button
+            onClick={() => setShowCreateJobModal(true)}
+            className="px-6 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 font-medium"
+          >
+            ➕ Tạo Công Việc
+          </button>
+        </div>
+
+        <div className="grid gap-4">
+          {visibleJobs.length === 0 ? (
+            <div className="bg-white p-12 rounded-xl text-center text-gray-500">
+              <div className="text-6xl mb-4">🔧</div>
+              <div className="text-xl">Chưa có công việc nào</div>
+            </div>
+          ) : (
+            visibleJobs.map(job => (
+              <div
+                key={job.id}
+                onClick={() => {
+                  setSelectedJob(job);
+                  setShowJobModal(true);
+                }}
+                className="bg-white p-6 rounded-xl shadow hover:shadow-lg transition-all cursor-pointer border-l-4 border-orange-500"
+              >
+                <div className="flex justify-between items-start mb-3">
+                  <div className="flex-1">
+                    <h3 className="text-lg font-bold mb-2">{job.title}</h3>
+                    <div className="flex gap-2 flex-wrap">
+                      <span className={`px-3 py-1 rounded-full text-sm ${getStatusColor(job.status)}`}>
+                        {job.status}
+                      </span>
+                      <span className="px-3 py-1 bg-orange-100 text-orange-800 rounded-full text-sm">
+                        {job.type}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-2 text-sm text-gray-600">
+                  <div className="flex items-center gap-2">
+                    <span>👤</span>
+                    <span>{job.customerName} - {job.customerPhone}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span>📍</span>
+                    <span>{job.address}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span>🔧</span>
+                    <span>{job.technician}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span>📅</span>
+                    <span>{job.scheduledDate} {job.scheduledTime && `- ${job.scheduledTime}`}</span>
+                  </div>
+                  {job.estimatedCost > 0 && (
+                    <div className="flex items-center gap-2">
+                      <span>💰</span>
+                      <span>{job.estimatedCost.toLocaleString('vi-VN')} VNĐ</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </div>
     );
@@ -2808,9 +3189,41 @@ export default function SimpleMarketingSystem() {
         </div>
       </div>
 
+      {/* Module Selector */}
+      <div className="bg-gradient-to-r from-blue-600 to-purple-600">
+        <div className="max-w-7xl mx-auto px-6 flex gap-2">
+          <button
+            onClick={() => {
+              setActiveModule('marketing');
+              setActiveTab('dashboard');
+            }}
+            className={`px-8 py-4 font-bold text-lg transition-all ${
+              activeModule === 'marketing'
+                ? 'bg-white text-blue-600'
+                : 'text-white/80 hover:text-white hover:bg-white/10'
+            }`}
+          >
+            📱 Marketing
+          </button>
+          <button
+            onClick={() => {
+              setActiveModule('technical');
+              setActiveTab('jobs');
+            }}
+            className={`px-8 py-4 font-bold text-lg transition-all ${
+              activeModule === 'technical'
+                ? 'bg-white text-orange-600'
+                : 'text-white/80 hover:text-white hover:bg-white/10'
+            }`}
+          >
+            🔧 Kỹ Thuật
+          </button>
+        </div>
+      </div>
+
       <div className="bg-white border-b">
         <div className="max-w-7xl mx-auto px-6 flex gap-2 overflow-x-auto">
-          {[
+          {activeModule === 'marketing' ? [
             { id: 'mytasks', l: '📝 Của Tôi' },
             { id: 'dashboard', l: '📊 Dashboard' },
             { id: 'tasks', l: '📋 Tasks' },
@@ -2822,7 +3235,10 @@ export default function SimpleMarketingSystem() {
               { id: 'automation', l: '⚙️ Automation' },
               { id: 'users', l: '👥 Users' }
             ] : [])
-          ].map(t => (
+          ] : [
+            { id: 'jobs', l: '📋 Công Việc' },
+            { id: 'integrations', l: '🔗 Tích Hợp' },
+          ]}.map(t => (
             <button key={t.id} onClick={() => setActiveTab(t.id)} className={`px-6 py-3 font-medium border-b-4 whitespace-nowrap ${activeTab === t.id ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-600'}`}>
               {t.l}
             </button>
@@ -2831,19 +3247,30 @@ export default function SimpleMarketingSystem() {
       </div>
 
       <div className="max-w-7xl mx-auto">
-        {activeTab === 'mytasks' && <MyTasksView />}
-        {activeTab === 'dashboard' && <DashboardView />}
-        {activeTab === 'tasks' && <TasksView />}
-        {activeTab === 'calendar' && <CalendarView />}
-        {activeTab === 'report' && <ReportView />}
-        {activeTab === 'integrations' && <IntegrationsView />}
-        {activeTab === 'automation' && <AutomationView />}
-        {activeTab === 'users' && <UserManagementView />}
-        {activeTab === 'performance' && <PerformanceView />}
+        {activeModule === 'marketing' && (
+          <>
+            {activeTab === 'mytasks' && <MyTasksView />}
+            {activeTab === 'dashboard' && <DashboardView />}
+            {activeTab === 'tasks' && <TasksView />}
+            {activeTab === 'calendar' && <CalendarView />}
+            {activeTab === 'report' && <ReportView />}
+            {activeTab === 'integrations' && <IntegrationsView />}
+            {activeTab === 'automation' && <AutomationView />}
+            {activeTab === 'users' && <UserManagementView />}
+            {activeTab === 'performance' && <PerformanceView />}
+          </>
+        )}
+        {activeModule === 'technical' && (
+          <>
+            {activeTab === 'jobs' && <TechnicalJobsView />}
+            {activeTab === 'integrations' && <IntegrationsView />}
+          </>
+        )}
       </div>
 
       {showModal && <TaskModal />}
       {showCreateTaskModal && <CreateTaskModal />}
+      {showCreateJobModal && <CreateJobModal />}
     </div>
   );
 }
