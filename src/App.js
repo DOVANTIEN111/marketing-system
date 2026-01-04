@@ -505,8 +505,8 @@ export default function SimpleMarketingSystem() {
   const visibleTasks = useMemo(() => {
     if (!currentUser) return tasks;
     
-    if (currentUser.role === 'Manager') {
-      return tasks;
+    if (currentUser.role === 'Admin' || currentUser.role === 'Manager') {
+      return tasks; // Admin & Manager thấy TẤT CẢ
     } else if (currentUser.role === 'Team Lead') {
       return tasks.filter(t => t.team === currentUser.team);
     } else {
@@ -1471,7 +1471,20 @@ export default function SimpleMarketingSystem() {
 
   const IntegrationsView = () => (
     <div className="p-6">
-      <h2 className="text-2xl font-bold mb-6">🔗 Tích Hợp</h2>
+      <div className="mb-6">
+        <h2 className="text-2xl font-bold">🔗 Tích Hợp</h2>
+        <p className="text-gray-600 mt-1">Kết nối các công cụ cá nhân của bạn</p>
+      </div>
+
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+        <div className="flex items-start gap-3">
+          <span className="text-2xl">ℹ️</span>
+          <div className="text-sm text-blue-800">
+            <div className="font-semibold mb-1">Tích hợp cá nhân</div>
+            <div>Các tích hợp này chỉ áp dụng cho tài khoản của <strong>{currentUser.name}</strong>. Mỗi thành viên có thể kết nối công cụ riêng của mình.</div>
+          </div>
+        </div>
+      </div>
       
       <div className="grid md:grid-cols-2 gap-6">
         {[
@@ -2591,10 +2604,12 @@ export default function SimpleMarketingSystem() {
             { id: 'tasks', l: '📋 Tasks' },
             { id: 'calendar', l: '📅 Lịch' },
             { id: 'report', l: '📈 Báo Cáo' },
-            { id: 'integrations', l: '🔗 Tích Hợp' },
-            { id: 'automation', l: '⚙️ Automation' },
             { id: 'performance', l: '📊 Hiệu Suất' },
-            ...(currentUser.role === 'Admin' ? [{ id: 'users', l: '👥 Users' }] : [])
+            { id: 'integrations', l: '🔗 Tích Hợp' },
+            ...(currentUser.role === 'Admin' ? [
+              { id: 'automation', l: '⚙️ Automation' },
+              { id: 'users', l: '👥 Users' }
+            ] : [])
           ].map(t => (
             <button key={t.id} onClick={() => setActiveTab(t.id)} className={`px-6 py-3 font-medium border-b-4 whitespace-nowrap ${activeTab === t.id ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-600'}`}>
               {t.l}
