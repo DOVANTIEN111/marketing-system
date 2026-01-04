@@ -2297,8 +2297,8 @@ export default function SimpleMarketingSystem() {
 
   const TechnicalJobsView = () => {
     const visibleJobs = technicalJobs.filter(job => {
-      // Admin thấy tất cả
-      if (currentUser.role === 'Admin') return true;
+      // Admin và Manager thấy tất cả
+      if (currentUser.role === 'Admin' || currentUser.role === 'Manager') return true;
       
       // Technical members thấy jobs được assign
       if (currentUser.departments && currentUser.departments.includes('technical')) {
@@ -3766,7 +3766,7 @@ export default function SimpleMarketingSystem() {
                   📱 Marketing
                 </button>
               )}
-              {(currentUser.role === 'Admin' || (currentUser.departments && (currentUser.departments.includes('technical') || currentUser.departments.includes('sales')))) && (
+              {(currentUser.role === 'Admin' || currentUser.role === 'Manager' || (currentUser.departments && (currentUser.departments.includes('technical') || currentUser.departments.includes('sales')))) && (
                 <button
                   onClick={() => {
                     setActiveModule('technical');
@@ -3856,7 +3856,7 @@ export default function SimpleMarketingSystem() {
               📱 Marketing
             </button>
           )}
-          {(currentUser.role === 'Admin' || (currentUser.departments && (currentUser.departments.includes('technical') || currentUser.departments.includes('sales')))) && (
+          {(currentUser.role === 'Admin' || currentUser.role === 'Manager' || (currentUser.departments && (currentUser.departments.includes('technical') || currentUser.departments.includes('sales')))) && (
             <button
               onClick={() => {
                 setActiveModule('technical');
