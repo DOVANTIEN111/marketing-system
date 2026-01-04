@@ -970,12 +970,87 @@ export default function SimpleMarketingSystem() {
   const TasksView = () => {
     const [filterTeam, setFilterTeam] = useState('all');
     const [filterStatus, setFilterStatus] = useState('all');
+    const [dateFilter, setDateFilter] = useState('all');
+    const [customStartDate, setCustomStartDate] = useState('');
+    const [customEndDate, setCustomEndDate] = useState('');
+    const [showCustomDate, setShowCustomDate] = useState(false);
+
+    // Helper: Get date range based on filter
+    const getDateRange = () => {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      switch(dateFilter) {
+        case 'today': {
+          const tomorrow = new Date(today);
+          tomorrow.setDate(tomorrow.getDate() + 1);
+          return { start: today, end: tomorrow };
+        }
+        case 'week': {
+          const weekEnd = new Date(today);
+          weekEnd.setDate(weekEnd.getDate() + 7);
+          return { start: today, end: weekEnd };
+        }
+        case 'month': {
+          const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+          return { start: today, end: monthEnd };
+        }
+        case 'overdue': {
+          return { start: new Date(2000, 0, 1), end: today };
+        }
+        case 'custom': {
+          if (!customStartDate || !customEndDate) return null;
+          return { 
+            start: new Date(customStartDate), 
+            end: new Date(customEndDate) 
+          };
+        }
+        default:
+          return null;
+      }
+    };
 
     const filteredTasks = visibleTasks.filter(t => {
       if (filterTeam !== 'all' && t.team !== filterTeam) return false;
       if (filterStatus !== 'all' && t.status !== filterStatus) return false;
+      
+      // Date filter
+      if (dateFilter !== 'all') {
+        const range = getDateRange();
+        if (!range) return false;
+        
+        const taskDate = new Date(t.dueDate);
+        taskDate.setHours(0, 0, 0, 0);
+        
+        if (dateFilter === 'overdue') {
+          // Overdue: deadline < today AND not completed
+          if (!(taskDate < range.end && t.status !== 'Hoàn Thành')) return false;
+        } else {
+          // Other filters: within range
+          if (!(taskDate >= range.start && taskDate <= range.end)) return false;
+        }
+      }
+      
       return true;
     });
+
+    const handleDateFilterChange = (value) => {
+      setDateFilter(value);
+      setShowCustomDate(value === 'custom');
+      if (value !== 'custom') {
+        setCustomStartDate('');
+        setCustomEndDate('');
+      }
+    };
+
+    const clearFilters = () => {
+      setFilterTeam('all');
+      setFilterStatus('all');
+      setDateFilter('all');
+      setCustomStartDate('');
+      setCustomEndDate('');
+      setShowCustomDate(false);
+    };
 
     return (
       <div className="p-6">
@@ -1019,6 +1094,111 @@ export default function SimpleMarketingSystem() {
                 <option value="Hoàn Thành">Hoàn Thành</option>
               </select>
             </div>
+          </div>
+
+          {/* Date Filter Section */}
+          <div className="mt-4 pt-4 border-t">
+            <label className="text-sm font-medium mb-3 block">📅 Lọc theo Deadline:</label>
+            <div className="flex gap-2 flex-wrap mb-3">
+              <button
+                onClick={() => handleDateFilterChange('all')}
+                className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                  dateFilter === 'all'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                Tất cả
+              </button>
+              <button
+                onClick={() => handleDateFilterChange('today')}
+                className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                  dateFilter === 'today'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                Hôm nay
+              </button>
+              <button
+                onClick={() => handleDateFilterChange('week')}
+                className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                  dateFilter === 'week'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                Tuần này
+              </button>
+              <button
+                onClick={() => handleDateFilterChange('month')}
+                className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                  dateFilter === 'month'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                Tháng này
+              </button>
+              <button
+                onClick={() => handleDateFilterChange('overdue')}
+                className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                  dateFilter === 'overdue'
+                    ? 'bg-red-600 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                ⚠️ Quá hạn
+              </button>
+              <button
+                onClick={() => handleDateFilterChange('custom')}
+                className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                  dateFilter === 'custom'
+                    ? 'bg-purple-600 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                Tùy chỉnh
+              </button>
+            </div>
+
+            {showCustomDate && (
+              <div className="flex gap-3 items-center bg-purple-50 p-3 rounded-lg">
+                <div>
+                  <label className="text-xs text-gray-600 block mb-1">Từ ngày:</label>
+                  <input
+                    type="date"
+                    value={customStartDate}
+                    onChange={(e) => setCustomStartDate(e.target.value)}
+                    className="px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  />
+                </div>
+                <div className="mt-5">→</div>
+                <div>
+                  <label className="text-xs text-gray-600 block mb-1">Đến ngày:</label>
+                  <input
+                    type="date"
+                    value={customEndDate}
+                    onChange={(e) => setCustomEndDate(e.target.value)}
+                    className="px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="mt-4 pt-4 border-t flex items-center justify-between">
+            <div className="text-sm text-gray-600">
+              Hiển thị <span className="font-bold text-blue-600">{filteredTasks.length}</span> / {visibleTasks.length} tasks
+            </div>
+            {(filterTeam !== 'all' || filterStatus !== 'all' || dateFilter !== 'all') && (
+              <button
+                onClick={clearFilters}
+                className="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg text-sm font-medium"
+              >
+                × Clear all filters
+              </button>
+            )}
           </div>
         </div>
 
