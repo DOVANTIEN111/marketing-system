@@ -175,11 +175,6 @@ export default function SimpleMarketingSystem() {
         estimatedCost: job.estimated_cost,
         actualCost: job.actual_cost,
         status: job.status,
-        photosBefore: job.photos_before || [],
-        photosAfter: job.photos_after || [],
-        customerRating: job.customer_rating,
-        customerFeedback: job.customer_feedback,
-        technicianNotes: job.technician_notes,
         createdAt: job.created_at
       }));
       
@@ -274,12 +269,7 @@ export default function SimpleMarketingSystem() {
           scheduled_date: jobData.scheduledDate,
           scheduled_time: jobData.scheduledTime,
           estimated_cost: jobData.estimatedCost,
-          status: 'Chờ XN',
-          photos_before: [],
-          photos_after: [],
-          customer_rating: null,
-          customer_feedback: '',
-          technician_notes: ''
+          status: 'Chờ XN'
         }]);
       
       if (error) throw error;
@@ -758,7 +748,6 @@ export default function SimpleMarketingSystem() {
     const [estimatedCost, setEstimatedCost] = useState('');
 
     const getTechnicalUsers = () => {
-      // Users có department technical
       return allUsers.filter(u => 
         u.departments && u.departments.includes('technical')
       );
@@ -2006,10 +1995,6 @@ export default function SimpleMarketingSystem() {
             visibleJobs.map(job => (
               <div
                 key={job.id}
-                onClick={() => {
-                  setSelectedJob(job);
-                  setShowJobModal(true);
-                }}
                 className="bg-white p-6 rounded-xl shadow hover:shadow-lg transition-all cursor-pointer border-l-4 border-orange-500"
               >
                 <div className="flex justify-between items-start mb-3">
@@ -3223,7 +3208,7 @@ export default function SimpleMarketingSystem() {
 
       <div className="bg-white border-b">
         <div className="max-w-7xl mx-auto px-6 flex gap-2 overflow-x-auto">
-          {activeModule === 'marketing' ? [
+          {(activeModule === 'marketing' ? [
             { id: 'mytasks', l: '📝 Của Tôi' },
             { id: 'dashboard', l: '📊 Dashboard' },
             { id: 'tasks', l: '📋 Tasks' },
@@ -3237,7 +3222,7 @@ export default function SimpleMarketingSystem() {
             ] : [])
           ] : [
             { id: 'jobs', l: '📋 Công Việc' },
-            { id: 'integrations', l: '🔗 Tích Hợp' },
+            { id: 'integrations', l: '🔗 Tích Hợp' }
           ]).map(t => (
             <button key={t.id} onClick={() => setActiveTab(t.id)} className={`px-6 py-3 font-medium border-b-4 whitespace-nowrap ${activeTab === t.id ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-600'}`}>
               {t.l}
