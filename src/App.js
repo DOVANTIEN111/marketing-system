@@ -3626,7 +3626,7 @@ export default function SimpleMarketingSystem() {
               />
             </div>
             <h1 className="text-3xl font-bold mb-2">Marketing Hoàng Nam Audio</h1>
-            <p className="text-gray-600">Quản lý team marketing hiệu quả</p>
+            <p className="text-gray-600">Làm việc hăng say, tiền ngay về túi</p>
           </div>
           
           <div className="space-y-4">
@@ -3701,7 +3701,7 @@ export default function SimpleMarketingSystem() {
               <img src="/logo.png" alt="Hoàng Nam Audio" className="h-12 w-auto" />
               <div>
                 <h1 className="text-2xl font-bold">Marketing Hoàng Nam Audio</h1>
-                <p className="text-gray-600 text-sm">Quản lý team hiệu quả</p>
+                <p className="text-gray-600 text-sm">Làm việc hăng say, tiền ngay về túi</p>
               </div>
             </div>
             <div className="flex items-center gap-4">
