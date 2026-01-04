@@ -3238,7 +3238,7 @@ export default function SimpleMarketingSystem() {
           ] : [
             { id: 'jobs', l: '📋 Công Việc' },
             { id: 'integrations', l: '🔗 Tích Hợp' },
-          ]}.map(t => (
+          ]).map(t => (
             <button key={t.id} onClick={() => setActiveTab(t.id)} className={`px-6 py-3 font-medium border-b-4 whitespace-nowrap ${activeTab === t.id ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-600'}`}>
               {t.l}
             </button>
