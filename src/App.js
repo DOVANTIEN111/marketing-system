@@ -3676,9 +3676,8 @@ export default function SimpleMarketingSystem() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
               </svg>
             </button>
-            <div className="flex items-center gap-2">
-              <img src="/logo.png" alt="Logo" className="h-8 w-auto" />
-              <h1 className="text-lg font-bold">HNA</h1>
+            <div className="flex items-center">
+              <img src="/logo.png" alt="Logo" className="h-10 w-auto" />
             </div>
             <div className="relative">
               <button
