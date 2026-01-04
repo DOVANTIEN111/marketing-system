@@ -3767,7 +3767,7 @@ export default function SimpleMarketingSystem() {
             {/* Module Selection */}
             <div className="p-4 border-b">
               <div className="text-xs font-semibold text-gray-500 mb-2">BỘ PHẬN</div>
-              {currentUser.departments && currentUser.departments.includes('marketing') && (
+              {(currentUser.role === 'Admin' || (currentUser.departments && currentUser.departments.includes('marketing'))) && (
                 <button
                   onClick={() => {
                     setActiveModule('marketing');
@@ -3783,7 +3783,7 @@ export default function SimpleMarketingSystem() {
                   📱 Marketing
                 </button>
               )}
-              {(currentUser.departments && (currentUser.departments.includes('technical') || currentUser.departments.includes('sales'))) && (
+              {(currentUser.role === 'Admin' || (currentUser.departments && (currentUser.departments.includes('technical') || currentUser.departments.includes('sales')))) && (
                 <button
                   onClick={() => {
                     setActiveModule('technical');
@@ -3858,7 +3858,7 @@ export default function SimpleMarketingSystem() {
       {/* Module Selector - Desktop Only */}
       <div className="hidden md:block bg-gradient-to-r from-blue-600 to-purple-600">
         <div className="max-w-7xl mx-auto px-6 flex gap-2">
-          {currentUser.departments && currentUser.departments.includes('marketing') && (
+          {(currentUser.role === 'Admin' || (currentUser.departments && currentUser.departments.includes('marketing'))) && (
             <button
               onClick={() => {
                 setActiveModule('marketing');
@@ -3873,7 +3873,7 @@ export default function SimpleMarketingSystem() {
               📱 Marketing
             </button>
           )}
-          {(currentUser.departments && (currentUser.departments.includes('technical') || currentUser.departments.includes('sales'))) && (
+          {(currentUser.role === 'Admin' || (currentUser.departments && (currentUser.departments.includes('technical') || currentUser.departments.includes('sales')))) && (
             <button
               onClick={() => {
                 setActiveModule('technical');
