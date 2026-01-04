@@ -13,6 +13,7 @@ export default function SimpleMarketingSystem() {
   const [showModal, setShowModal] = useState(false);
   const [showCreateTaskModal, setShowCreateTaskModal] = useState(false);
   const [showCreateJobModal, setShowCreateJobModal] = useState(false);
+  const [prefillJobData, setPrefillJobData] = useState(null);
   const [selectedJob, setSelectedJob] = useState(null);
   const [showJobModal, setShowJobModal] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -293,6 +294,29 @@ export default function SimpleMarketingSystem() {
     } catch (error) {
       console.error('Error creating technical job:', error);
       alert('❌ Lỗi khi tạo công việc!');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const deleteTechnicalJob = async (jobId) => {
+    try {
+      setLoading(true);
+      
+      const { error } = await supabase
+        .from('technical_jobs')
+        .delete()
+        .eq('id', jobId);
+      
+      if (error) throw error;
+      
+      alert('✅ Đã xóa công việc!');
+      setShowJobModal(false);
+      setSelectedJob(null);
+      await loadTechnicalJobs();
+    } catch (error) {
+      console.error('Error deleting job:', error);
+      alert('❌ Lỗi khi xóa công việc!');
     } finally {
       setLoading(false);
     }
@@ -748,6 +772,18 @@ export default function SimpleMarketingSystem() {
     const [scheduledTime, setScheduledTime] = useState('');
     const [customerPayment, setCustomerPayment] = useState('');
 
+    // Prefill from task if available
+    useEffect(() => {
+      if (prefillJobData) {
+        setTitle(prefillJobData.title || '');
+        setCustomerName(prefillJobData.customerName || '');
+        setCustomerPhone(prefillJobData.customerPhone || '');
+        setAddress(prefillJobData.address || '');
+        setEquipment(prefillJobData.equipment || '');
+        setScheduledDate(prefillJobData.scheduledDate || '');
+      }
+    }, []);
+
     const getTechnicalUsers = () => {
       return allUsers.filter(u => 
         u.departments && u.departments.includes('technical')
@@ -1074,10 +1110,22 @@ export default function SimpleMarketingSystem() {
             </div>
           </div>
 
-          <div className="p-6 border-t bg-gray-50">
+          <div className="p-6 border-t bg-gray-50 flex gap-3">
+            {currentUser.role === 'Admin' && (
+              <button
+                onClick={() => {
+                  if (window.confirm('⚠️ Xóa công việc này?\n\nHành động không thể hoàn tác!')) {
+                    deleteTechnicalJob(selectedJob.id);
+                  }
+                }}
+                className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium"
+              >
+                🗑️ Xóa
+              </button>
+            )}
             <button
               onClick={() => setShowJobModal(false)}
-              className="w-full px-6 py-3 bg-gray-200 hover:bg-gray-300 rounded-lg font-medium"
+              className="flex-1 px-6 py-3 bg-gray-200 hover:bg-gray-300 rounded-lg font-medium"
             >
               Đóng
             </button>
@@ -3358,6 +3406,23 @@ export default function SimpleMarketingSystem() {
                 className="flex-1 px-6 py-3 bg-gray-200 hover:bg-gray-300 rounded-lg font-medium"
               >
                 Đóng
+              </button>
+              <button
+                onClick={() => {
+                  setPrefillJobData({
+                    title: selectedTask.title,
+                    customerName: '',
+                    customerPhone: '',
+                    address: '',
+                    equipment: selectedTask.description || '',
+                    scheduledDate: selectedTask.dueDate || ''
+                  });
+                  setShowModal(false);
+                  setShowCreateJobModal(true);
+                }}
+                className="px-6 py-3 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-medium"
+              >
+                🔧 Giao Kỹ Thuật
               </button>
               {currentUser && (currentUser.role === 'Manager' || selectedTask.assignee === currentUser.name) && (
                 <button
