@@ -1196,7 +1196,8 @@ export default function SimpleMarketingSystem() {
       const { startDate, endDate } = getDateRange();
       
       return visibleTasks.filter(task => {
-        const taskDate = new Date(task.dueDate);
+        // Dùng created_at nếu có, fallback về dueDate
+        const taskDate = task.created_at ? new Date(task.created_at) : new Date(task.dueDate);
         return taskDate >= startDate && taskDate <= endDate;
       });
     }, [visibleTasks, dateRange, customStartDate, customEndDate]);
@@ -1229,7 +1230,7 @@ export default function SimpleMarketingSystem() {
 
       const currentCompleted = filteredTasks.filter(t => t.status === 'Hoàn Thành').length;
       const prevCompleted = visibleTasks.filter(t => {
-        const taskDate = new Date(t.dueDate);
+        const taskDate = t.created_at ? new Date(t.created_at) : new Date(t.dueDate);
         return taskDate >= prevStartDate && taskDate <= prevEndDate && t.status === 'Hoàn Thành';
       }).length;
 
