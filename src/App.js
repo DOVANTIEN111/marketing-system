@@ -169,11 +169,10 @@ export default function SimpleMarketingSystem() {
         customerPhone: job.customer_phone,
         address: job.address,
         equipment: job.equipment || [],
-        technician: job.technician,
+        technicians: job.technicians || [job.technician],
         scheduledDate: job.scheduled_date,
         scheduledTime: job.scheduled_time,
-        estimatedCost: job.estimated_cost,
-        actualCost: job.actual_cost,
+        customerPayment: job.customer_payment,
         status: job.status,
         createdAt: job.created_at
       }));
@@ -265,26 +264,28 @@ export default function SimpleMarketingSystem() {
           customer_phone: jobData.customerPhone,
           address: jobData.address,
           equipment: jobData.equipment,
-          technician: jobData.technician,
+          technicians: jobData.technicians,
           scheduled_date: jobData.scheduledDate,
           scheduled_time: jobData.scheduledTime,
-          estimated_cost: jobData.estimatedCost,
+          customer_payment: jobData.customerPayment,
           status: 'Chờ XN'
         }]);
       
       if (error) throw error;
       
-      // Notify technician if different from creator
-      if (jobData.technician !== currentUser.name) {
-        addNotification({
-          type: 'assigned',
-          taskId: null,
-          title: '🔧 Công việc mới',
-          message: `${currentUser.name} đã giao công việc: "${jobData.title}"`,
-          read: false,
-          createdAt: new Date().toISOString()
-        });
-      }
+      // Notify all technicians
+      jobData.technicians.forEach(techName => {
+        if (techName !== currentUser.name) {
+          addNotification({
+            type: 'assigned',
+            taskId: null,
+            title: '🔧 Công việc mới',
+            message: `${currentUser.name} đã giao công việc: "${jobData.title}"`,
+            read: false,
+            createdAt: new Date().toISOString()
+          });
+        }
+      });
       
       alert('✅ Đã tạo công việc kỹ thuật!');
       setShowCreateJobModal(false);
@@ -742,10 +743,10 @@ export default function SimpleMarketingSystem() {
     const [customerPhone, setCustomerPhone] = useState('');
     const [address, setAddress] = useState('');
     const [equipment, setEquipment] = useState('');
-    const [technician, setTechnician] = useState(currentUser.name);
+    const [technicians, setTechnicians] = useState([currentUser.name]);
     const [scheduledDate, setScheduledDate] = useState('');
     const [scheduledTime, setScheduledTime] = useState('');
-    const [estimatedCost, setEstimatedCost] = useState('');
+    const [customerPayment, setCustomerPayment] = useState('');
 
     const getTechnicalUsers = () => {
       return allUsers.filter(u => 
@@ -754,6 +755,14 @@ export default function SimpleMarketingSystem() {
     };
 
     const technicalUsers = getTechnicalUsers();
+
+    const toggleTechnician = (techName) => {
+      if (technicians.includes(techName)) {
+        setTechnicians(technicians.filter(t => t !== techName));
+      } else {
+        setTechnicians([...technicians, techName]);
+      }
+    };
 
     if (!showCreateJobModal) return null;
 
@@ -839,18 +848,23 @@ export default function SimpleMarketingSystem() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-2">👤 Kỹ thuật viên *</label>
-              <select
-                value={technician}
-                onChange={(e) => setTechnician(e.target.value)}
-                className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
-              >
+              <label className="block text-sm font-medium mb-2">👥 Kỹ thuật viên * (Chọn nhiều)</label>
+              <div className="border rounded-lg p-3 space-y-2 max-h-40 overflow-y-auto">
                 {technicalUsers.map(user => (
-                  <option key={user.id} value={user.name}>
-                    {user.name} - {user.team}
-                  </option>
+                  <label key={user.id} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-2 rounded">
+                    <input
+                      type="checkbox"
+                      checked={technicians.includes(user.name)}
+                      onChange={() => toggleTechnician(user.name)}
+                      className="w-4 h-4 text-orange-600"
+                    />
+                    <span className="text-sm">{user.name} - {user.team}</span>
+                  </label>
                 ))}
-              </select>
+              </div>
+              {technicians.length === 0 && (
+                <p className="text-xs text-red-600 mt-1">⚠️ Chọn ít nhất 1 kỹ thuật viên</p>
+              )}
             </div>
 
             <div className="grid md:grid-cols-3 gap-4">
@@ -875,12 +889,12 @@ export default function SimpleMarketingSystem() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-2">Chi phí dự kiến (VNĐ)</label>
+              <label className="block text-sm font-medium mb-2">💰 Thu của khách (VNĐ)</label>
               <input
                 type="number"
-                value={estimatedCost}
-                onChange={(e) => setEstimatedCost(e.target.value)}
-                placeholder="25000000"
+                value={customerPayment}
+                onChange={(e) => setCustomerPayment(e.target.value)}
+                placeholder="39300000"
                 className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
               />
             </div>
@@ -899,6 +913,10 @@ export default function SimpleMarketingSystem() {
                   alert('⚠️ Vui lòng điền đầy đủ thông tin bắt buộc!');
                   return;
                 }
+                if (technicians.length === 0) {
+                  alert('⚠️ Vui lòng chọn ít nhất 1 kỹ thuật viên!');
+                  return;
+                }
                 createTechnicalJob({
                   title,
                   type,
@@ -906,10 +924,10 @@ export default function SimpleMarketingSystem() {
                   customerPhone,
                   address,
                   equipment: equipment ? equipment.split(',').map(e => e.trim()) : [],
-                  technician,
+                  technicians,
                   scheduledDate,
                   scheduledTime: scheduledTime || '09:00',
-                  estimatedCost: estimatedCost ? parseFloat(estimatedCost) : 0
+                  customerPayment: customerPayment ? parseFloat(customerPayment) : 0
                 });
               }}
               className="flex-1 px-6 py-3 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-medium"
@@ -1004,18 +1022,22 @@ export default function SimpleMarketingSystem() {
             <div className="bg-orange-50 p-4 rounded-lg">
               <h3 className="font-bold mb-3 text-lg">📅 Lịch hẹn</h3>
               <div className="space-y-2 text-sm">
-                <div><strong>Kỹ thuật viên:</strong> {selectedJob.technician}</div>
+                <div>
+                  <strong>Kỹ thuật viên:</strong> {selectedJob.technicians ? selectedJob.technicians.join(', ') : selectedJob.technician}
+                </div>
                 <div><strong>Ngày:</strong> {selectedJob.scheduledDate}</div>
                 <div><strong>Giờ:</strong> {selectedJob.scheduledTime || 'Chưa xác định'}</div>
               </div>
             </div>
 
-            {/* Cost */}
-            {selectedJob.estimatedCost > 0 && (
+            {/* Customer Payment */}
+            {selectedJob.customerPayment > 0 && (
               <div className="bg-green-50 p-4 rounded-lg">
-                <h3 className="font-bold mb-3 text-lg">💰 Chi phí</h3>
+                <h3 className="font-bold mb-3 text-lg">💰 Thu của khách</h3>
                 <div className="text-sm">
-                  <div><strong>Dự kiến:</strong> {selectedJob.estimatedCost.toLocaleString('vi-VN')} VNĐ</div>
+                  <div className="text-2xl font-bold text-green-700">
+                    {selectedJob.customerPayment.toLocaleString('vi-VN')} VNĐ
+                  </div>
                 </div>
               </div>
             )}
@@ -2103,7 +2125,7 @@ export default function SimpleMarketingSystem() {
   const TechnicalJobsView = () => {
     const visibleJobs = technicalJobs.filter(job => {
       if (currentUser.role === 'Admin') return true;
-      return job.technician === currentUser.name;
+      return job.technicians && job.technicians.includes(currentUser.name);
     });
 
     const getStatusColor = (status) => {
@@ -2169,16 +2191,16 @@ export default function SimpleMarketingSystem() {
                   </div>
                   <div className="flex items-center gap-2">
                     <span>🔧</span>
-                    <span>{job.technician}</span>
+                    <span>{job.technicians ? job.technicians.join(', ') : job.technician}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <span>📅</span>
                     <span>{job.scheduledDate} {job.scheduledTime && `- ${job.scheduledTime}`}</span>
                   </div>
-                  {job.estimatedCost > 0 && (
+                  {job.customerPayment > 0 && (
                     <div className="flex items-center gap-2">
                       <span>💰</span>
-                      <span>{job.estimatedCost.toLocaleString('vi-VN')} VNĐ</span>
+                      <span>Thu: {job.customerPayment.toLocaleString('vi-VN')} VNĐ</span>
                     </div>
                   )}
                 </div>
