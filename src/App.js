@@ -44,6 +44,24 @@ export default function SimpleMarketingSystem() {
   // ===================
 
   // Load data from Supabase on mount
+  // Restore session từ localStorage khi load trang
+  useEffect(() => {
+    const savedUser = localStorage.getItem('marketingSystemUser');
+    const savedLoggedIn = localStorage.getItem('marketingSystemLoggedIn');
+    
+    if (savedUser && savedLoggedIn === 'true') {
+      try {
+        const user = JSON.parse(savedUser);
+        setCurrentUser(user);
+        setIsLoggedIn(true);
+      } catch (error) {
+        console.error('Error restoring session:', error);
+        localStorage.removeItem('marketingSystemUser');
+        localStorage.removeItem('marketingSystemLoggedIn');
+      }
+    }
+  }, []);
+
   useEffect(() => {
     loadUsers();
     loadTasks();
@@ -461,6 +479,10 @@ export default function SimpleMarketingSystem() {
       setCurrentUser(data);
       setIsLoggedIn(true);
       setShowLoginModal(false);
+      
+      // Lưu session vào localStorage
+      localStorage.setItem('marketingSystemUser', JSON.stringify(data));
+      localStorage.setItem('marketingSystemLoggedIn', 'true');
     } catch (error) {
       console.error('Error logging in:', error);
       alert('❌ Lỗi khi đăng nhập!');
@@ -2587,6 +2609,9 @@ export default function SimpleMarketingSystem() {
                 setIsLoggedIn(false);
                 setCurrentUser(null);
                 setActiveTab('dashboard');
+                // Xóa session
+                localStorage.removeItem('marketingSystemUser');
+                localStorage.removeItem('marketingSystemLoggedIn');
               }}
               className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium text-sm"
             >
