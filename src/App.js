@@ -3603,7 +3603,7 @@ export default function SimpleMarketingSystem() {
           <div className="text-center mb-8">
             <div className="flex justify-center mb-4">
               <img 
-                src="/logo.png" 
+                src="/logo.png?v=2" 
                 alt="Hoàng Nam Audio" 
                 className="h-32 w-auto"
               />
@@ -3660,7 +3660,7 @@ export default function SimpleMarketingSystem() {
               </svg>
             </button>
             <div className="flex items-center">
-              <img src="/logo.png" alt="Logo" className="h-10 w-auto" />
+              <img src="/logo.png?v=2" alt="Logo" className="h-10 w-auto" />
             </div>
             <div className="relative">
               <button
@@ -3681,7 +3681,7 @@ export default function SimpleMarketingSystem() {
           {/* Desktop Header */}
           <div className="hidden md:flex justify-between items-center">
             <div className="flex items-center gap-4">
-              <img src="/logo.png" alt="Hoàng Nam Audio" className="h-12 w-auto" />
+              <img src="/logo.png?v=2" alt="Hoàng Nam Audio" className="h-12 w-auto" />
               <div>
                 <h1 className="text-2xl font-bold">Marketing Hoàng Nam Audio</h1>
                 <p className="text-gray-600 text-sm">Làm việc hăng say, tiền ngay về túi</p>
