@@ -17,6 +17,7 @@ export default function SimpleMarketingSystem() {
   const [selectedJob, setSelectedJob] = useState(null);
   const [showJobModal, setShowJobModal] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [showMobileSidebar, setShowMobileSidebar] = useState(false);
 
   const [allUsers, setAllUsers] = useState([]);
   const [tasks, setTasks] = useState([]);
@@ -3662,26 +3663,29 @@ export default function SimpleMarketingSystem() {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      <div className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-4">
-            <img 
-              src="/logo.png" 
-              alt="Hoàng Nam Audio" 
-              className="h-12 w-auto"
-            />
-            <div>
-              <h1 className="text-2xl font-bold">Marketing Hoàng Nam Audio</h1>
-              <p className="text-gray-600 text-sm">Quản lý team hiệu quả</p>
+      {/* Header */}
+      <div className="bg-white shadow sticky top-0 z-40">
+        <div className="max-w-7xl mx-auto px-4 md:px-6 py-3 md:py-4">
+          {/* Mobile Header */}
+          <div className="flex md:hidden justify-between items-center">
+            <button
+              onClick={() => setShowMobileSidebar(!showMobileSidebar)}
+              className="p-2 hover:bg-gray-100 rounded-lg"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
+            <div className="flex items-center gap-2">
+              <img src="/logo.png" alt="Logo" className="h-8 w-auto" />
+              <h1 className="text-lg font-bold">HNA</h1>
             </div>
-          </div>
-          <div className="flex items-center gap-4">
             <div className="relative">
               <button
                 onClick={() => setShowNotifications(!showNotifications)}
-                className="relative p-2 hover:bg-gray-100 rounded-full transition-colors"
+                className="relative p-2 hover:bg-gray-100 rounded-full"
               >
-                <span className="text-2xl">🔔</span>
+                <span className="text-xl">🔔</span>
                 {unreadCount > 0 && (
                   <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
                     {unreadCount > 9 ? '9+' : unreadCount}
@@ -3690,29 +3694,170 @@ export default function SimpleMarketingSystem() {
               </button>
               <NotificationsDropdown />
             </div>
-            <div className="text-right">
-              <div className="font-medium">{currentUser.name}</div>
-              <div className="text-sm text-gray-600">{currentUser.role} • {currentUser.team}</div>
+          </div>
+
+          {/* Desktop Header */}
+          <div className="hidden md:flex justify-between items-center">
+            <div className="flex items-center gap-4">
+              <img src="/logo.png" alt="Hoàng Nam Audio" className="h-12 w-auto" />
+              <div>
+                <h1 className="text-2xl font-bold">Marketing Hoàng Nam Audio</h1>
+                <p className="text-gray-600 text-sm">Quản lý team hiệu quả</p>
+              </div>
             </div>
-            <button
-              onClick={() => {
-                setIsLoggedIn(false);
-                setCurrentUser(null);
-                setActiveTab('dashboard');
-                // Xóa session
-                localStorage.removeItem('marketingSystemUser');
-                localStorage.removeItem('marketingSystemLoggedIn');
-              }}
-              className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium text-sm"
-            >
-              🚪 Đăng xuất
-            </button>
+            <div className="flex items-center gap-4">
+              <div className="relative">
+                <button
+                  onClick={() => setShowNotifications(!showNotifications)}
+                  className="relative p-2 hover:bg-gray-100 rounded-full transition-colors"
+                >
+                  <span className="text-2xl">🔔</span>
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </span>
+                  )}
+                </button>
+                <NotificationsDropdown />
+              </div>
+              <div className="text-right">
+                <div className="font-medium">{currentUser.name}</div>
+                <div className="text-sm text-gray-600">{currentUser.role} • {currentUser.team}</div>
+              </div>
+              <button
+                onClick={() => {
+                  setIsLoggedIn(false);
+                  setCurrentUser(null);
+                  setActiveTab('dashboard');
+                  localStorage.removeItem('marketingSystemUser');
+                  localStorage.removeItem('marketingSystemLoggedIn');
+                }}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium text-sm"
+              >
+                🚪 Đăng xuất
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Module Selector */}
-      <div className="bg-gradient-to-r from-blue-600 to-purple-600">
+      {/* Mobile Sidebar */}
+      {showMobileSidebar && (
+        <>
+          <div 
+            className="fixed inset-0 bg-black/50 z-40 md:hidden"
+            onClick={() => setShowMobileSidebar(false)}
+          />
+          <div className="fixed left-0 top-0 bottom-0 w-80 bg-white z-50 shadow-xl md:hidden overflow-y-auto">
+            <div className="p-4 border-b bg-gradient-to-r from-blue-600 to-purple-600 text-white">
+              <div className="flex justify-between items-center mb-3">
+                <h2 className="text-xl font-bold">Menu</h2>
+                <button
+                  onClick={() => setShowMobileSidebar(false)}
+                  className="p-1 hover:bg-white/20 rounded"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <div className="text-sm opacity-90">{currentUser.name}</div>
+              <div className="text-xs opacity-75">{currentUser.role} • {currentUser.team}</div>
+            </div>
+
+            {/* Module Selection */}
+            <div className="p-4 border-b">
+              <div className="text-xs font-semibold text-gray-500 mb-2">BỘ PHẬN</div>
+              {currentUser.departments && currentUser.departments.includes('marketing') && (
+                <button
+                  onClick={() => {
+                    setActiveModule('marketing');
+                    setActiveTab('dashboard');
+                    setShowMobileSidebar(false);
+                  }}
+                  className={`w-full px-4 py-3 rounded-lg mb-2 font-medium text-left ${
+                    activeModule === 'marketing'
+                      ? 'bg-blue-100 text-blue-700'
+                      : 'hover:bg-gray-100'
+                  }`}
+                >
+                  📱 Marketing
+                </button>
+              )}
+              {(currentUser.departments && (currentUser.departments.includes('technical') || currentUser.departments.includes('sales'))) && (
+                <button
+                  onClick={() => {
+                    setActiveModule('technical');
+                    setActiveTab('jobs');
+                    setShowMobileSidebar(false);
+                  }}
+                  className={`w-full px-4 py-3 rounded-lg font-medium text-left ${
+                    activeModule === 'technical'
+                      ? 'bg-orange-100 text-orange-700'
+                      : 'hover:bg-gray-100'
+                  }`}
+                >
+                  🔧 Kỹ Thuật
+                </button>
+              )}
+            </div>
+
+            {/* Tabs Navigation */}
+            <div className="p-4">
+              <div className="text-xs font-semibold text-gray-500 mb-2">CHỨC NĂNG</div>
+              {(activeModule === 'marketing' ? [
+                { id: 'mytasks', l: '📝 Của Tôi', show: true },
+                { id: 'dashboard', l: '📊 Dashboard', show: true },
+                { id: 'tasks', l: '📋 Tasks', show: true },
+                { id: 'calendar', l: '📅 Lịch', show: true },
+                { id: 'report', l: '📈 Báo Cáo', show: true },
+                { id: 'performance', l: '📊 Hiệu Suất', show: true },
+                { id: 'integrations', l: '🔗 Tích Hợp', show: true },
+                { id: 'automation', l: '⚙️ Automation', show: currentUser.role === 'Admin' },
+                { id: 'users', l: '👥 Users', show: currentUser.role === 'Admin' }
+              ] : [
+                { id: 'jobs', l: '📋 Công Việc', show: true },
+                { id: 'integrations', l: '🔗 Tích Hợp', show: true }
+              ]).filter(t => t.show).map(t => (
+                <button
+                  key={t.id}
+                  onClick={() => {
+                    setActiveTab(t.id);
+                    setShowMobileSidebar(false);
+                  }}
+                  className={`w-full px-4 py-3 rounded-lg mb-1 text-left font-medium ${
+                    activeTab === t.id
+                      ? 'bg-blue-600 text-white'
+                      : 'hover:bg-gray-100'
+                  }`}
+                >
+                  {t.l}
+                </button>
+              ))}
+            </div>
+
+            {/* Logout Button */}
+            <div className="p-4 border-t">
+              <button
+                onClick={() => {
+                  setIsLoggedIn(false);
+                  setCurrentUser(null);
+                  setActiveTab('dashboard');
+                  localStorage.removeItem('marketingSystemUser');
+                  localStorage.removeItem('marketingSystemLoggedIn');
+                  setShowMobileSidebar(false);
+                }}
+                className="w-full px-4 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium"
+              >
+                🚪 Đăng xuất
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Module Selector - Desktop Only */}
+      <div className="hidden md:block bg-gradient-to-r from-blue-600 to-purple-600">
         <div className="max-w-7xl mx-auto px-6 flex gap-2">
           {currentUser.departments && currentUser.departments.includes('marketing') && (
             <button
@@ -3747,7 +3892,7 @@ export default function SimpleMarketingSystem() {
         </div>
       </div>
 
-      <div className="bg-white border-b">
+      <div className="hidden md:block bg-white border-b">
         <div className="max-w-7xl mx-auto px-6 flex gap-2 overflow-x-auto">
           {(activeModule === 'marketing' ? [
             { id: 'mytasks', l: '📝 Của Tôi' },
@@ -3772,7 +3917,27 @@ export default function SimpleMarketingSystem() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto">
+      {/* Mobile Title Bar */}
+      <div className="md:hidden bg-white border-b px-4 py-3 sticky top-[52px] z-30">
+        <h2 className="font-bold text-lg">
+          {(activeModule === 'marketing' ? [
+            { id: 'mytasks', l: '📝 Của Tôi' },
+            { id: 'dashboard', l: '📊 Dashboard' },
+            { id: 'tasks', l: '📋 Tasks' },
+            { id: 'calendar', l: '📅 Lịch' },
+            { id: 'report', l: '📈 Báo Cáo' },
+            { id: 'performance', l: '📊 Hiệu Suất' },
+            { id: 'integrations', l: '🔗 Tích Hợp' },
+            { id: 'automation', l: '⚙️ Automation' },
+            { id: 'users', l: '👥 Users' }
+          ] : [
+            { id: 'jobs', l: '📋 Công Việc' },
+            { id: 'integrations', l: '🔗 Tích Hợp' }
+          ]).find(t => t.id === activeTab)?.l || ''}
+        </h2>
+      </div>
+
+      <div className="max-w-7xl mx-auto pb-20 md:pb-0">
         {activeModule === 'marketing' && (
           <>
             {activeTab === 'mytasks' && <MyTasksView />}
