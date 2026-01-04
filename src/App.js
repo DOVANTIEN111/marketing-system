@@ -174,6 +174,7 @@ export default function SimpleMarketingSystem() {
         scheduledDate: job.scheduled_date,
         scheduledTime: job.scheduled_time,
         customerPayment: job.customer_payment,
+        createdBy: job.created_by,
         status: job.status,
         createdAt: job.created_at
       }));
@@ -269,6 +270,7 @@ export default function SimpleMarketingSystem() {
           scheduled_date: jobData.scheduledDate,
           scheduled_time: jobData.scheduledTime,
           customer_payment: jobData.customerPayment,
+          created_by: currentUser.name,
           status: 'Chờ XN'
         }]);
       
@@ -2172,8 +2174,20 @@ export default function SimpleMarketingSystem() {
 
   const TechnicalJobsView = () => {
     const visibleJobs = technicalJobs.filter(job => {
+      // Admin thấy tất cả
       if (currentUser.role === 'Admin') return true;
-      return job.technicians && job.technicians.includes(currentUser.name);
+      
+      // Technical members thấy jobs được assign
+      if (currentUser.departments && currentUser.departments.includes('technical')) {
+        if (job.technicians && job.technicians.includes(currentUser.name)) return true;
+      }
+      
+      // Sales thấy jobs mình tạo
+      if (currentUser.departments && currentUser.departments.includes('sales')) {
+        if (job.createdBy === currentUser.name) return true;
+      }
+      
+      return false;
     });
 
     const getStatusColor = (status) => {
@@ -2241,6 +2255,12 @@ export default function SimpleMarketingSystem() {
                     <span>🔧</span>
                     <span>{job.technicians ? job.technicians.join(', ') : job.technician}</span>
                   </div>
+                  {job.createdBy && (
+                    <div className="flex items-center gap-2">
+                      <span>👨‍💼</span>
+                      <span>Người tạo: {job.createdBy}</span>
+                    </div>
+                  )}
                   <div className="flex items-center gap-2">
                     <span>📅</span>
                     <span>{job.scheduledDate} {job.scheduledTime && `- ${job.scheduledTime}`}</span>
@@ -2494,6 +2514,11 @@ export default function SimpleMarketingSystem() {
                           🔧 Kỹ Thuật
                         </span>
                       )}
+                      {user.departments && user.departments.includes('sales') && (
+                        <span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full">
+                          💼 Sales
+                        </span>
+                      )}
                       {(!user.departments || user.departments.length === 0) && (
                         <span className="text-xs text-gray-400">Chưa chọn</span>
                       )}
@@ -2647,6 +2672,19 @@ export default function SimpleMarketingSystem() {
               <div className="flex-1">
                 <div className="font-medium">🔧 Kỹ Thuật</div>
                 <div className="text-sm text-gray-500">Lắp đặt, bảo trì, sửa chữa thiết bị</div>
+              </div>
+            </label>
+
+            <label className="flex items-center gap-3 p-4 border-2 rounded-lg cursor-pointer hover:bg-green-50 transition-colors">
+              <input
+                type="checkbox"
+                checked={departments.includes('sales')}
+                onChange={() => toggleDepartment('sales')}
+                className="w-5 h-5 text-green-600"
+              />
+              <div className="flex-1">
+                <div className="font-medium">💼 Sales</div>
+                <div className="text-sm text-gray-500">Bán hàng, lên đơn, gán việc kỹ thuật</div>
               </div>
             </label>
 
@@ -3554,32 +3592,36 @@ export default function SimpleMarketingSystem() {
       {/* Module Selector */}
       <div className="bg-gradient-to-r from-blue-600 to-purple-600">
         <div className="max-w-7xl mx-auto px-6 flex gap-2">
-          <button
-            onClick={() => {
-              setActiveModule('marketing');
-              setActiveTab('dashboard');
-            }}
-            className={`px-8 py-4 font-bold text-lg transition-all ${
-              activeModule === 'marketing'
-                ? 'bg-white text-blue-600'
-                : 'text-white/80 hover:text-white hover:bg-white/10'
-            }`}
-          >
-            📱 Marketing
-          </button>
-          <button
-            onClick={() => {
-              setActiveModule('technical');
-              setActiveTab('jobs');
-            }}
-            className={`px-8 py-4 font-bold text-lg transition-all ${
-              activeModule === 'technical'
-                ? 'bg-white text-orange-600'
-                : 'text-white/80 hover:text-white hover:bg-white/10'
-            }`}
-          >
-            🔧 Kỹ Thuật
-          </button>
+          {currentUser.departments && currentUser.departments.includes('marketing') && (
+            <button
+              onClick={() => {
+                setActiveModule('marketing');
+                setActiveTab('dashboard');
+              }}
+              className={`px-8 py-4 font-bold text-lg transition-all ${
+                activeModule === 'marketing'
+                  ? 'bg-white text-blue-600'
+                  : 'text-white/80 hover:text-white hover:bg-white/10'
+              }`}
+            >
+              📱 Marketing
+            </button>
+          )}
+          {(currentUser.departments && (currentUser.departments.includes('technical') || currentUser.departments.includes('sales'))) && (
+            <button
+              onClick={() => {
+                setActiveModule('technical');
+                setActiveTab('jobs');
+              }}
+              className={`px-8 py-4 font-bold text-lg transition-all ${
+                activeModule === 'technical'
+                  ? 'bg-white text-orange-600'
+                  : 'text-white/80 hover:text-white hover:bg-white/10'
+              }`}
+            >
+              🔧 Kỹ Thuật
+            </button>
+          )}
         </div>
       </div>
 
