@@ -137,15 +137,20 @@ export default function SimpleMarketingSystem() {
     }
   };
 
-  const createNewTask = async (title, platform, priority, dueDate, description) => {
+  const createNewTask = async (title, platform, priority, dueDate, description, assignee) => {
     try {
       setLoading(true);
+      
+      // Get team of assignee
+      const assignedUser = allUsers.find(u => u.name === assignee);
+      const taskTeam = assignedUser ? assignedUser.team : currentUser.team;
+      
       const { error } = await supabase
         .from('tasks')
         .insert([{
           title,
-          assignee: currentUser.name,
-          team: currentUser.team,
+          assignee: assignee,
+          team: taskTeam,
           status: 'Nháp',
           due_date: dueDate,
           platform,
@@ -157,6 +162,18 @@ export default function SimpleMarketingSystem() {
         }]);
       
       if (error) throw error;
+      
+      // Notify assignee if different from creator
+      if (assignee !== currentUser.name) {
+        addNotification({
+          type: 'assigned',
+          taskId: null,
+          title: '📋 Task mới',
+          message: `${currentUser.name} đã giao task cho bạn: "${title}"`,
+          read: false,
+          createdAt: new Date().toISOString()
+        });
+      }
       
       alert('✅ Đã tạo task mới!');
       setShowCreateTaskModal(false);
@@ -1889,6 +1906,7 @@ export default function SimpleMarketingSystem() {
     const [priority, setPriority] = useState('');
     const [dueDate, setDueDate] = useState('');
     const [description, setDescription] = useState('');
+    const [assignee, setAssignee] = useState(currentUser.name);
 
     const togglePlatform = (plat) => {
       if (platform.includes(plat)) {
@@ -1897,6 +1915,19 @@ export default function SimpleMarketingSystem() {
         setPlatform([...platform, plat]);
       }
     };
+
+    // Filter assignable users based on role
+    const getAssignableUsers = () => {
+      if (currentUser.role === 'Admin' || currentUser.role === 'Manager') {
+        return allUsers;
+      } else if (currentUser.role === 'Team Lead') {
+        return allUsers.filter(u => u.team === currentUser.team);
+      } else {
+        return allUsers.filter(u => u.name === currentUser.name);
+      }
+    };
+
+    const assignableUsers = getAssignableUsers();
 
     const platforms = ['Facebook', 'Instagram', 'TikTok', 'Blog', 'Ads', 'Email'];
 
@@ -1946,7 +1977,28 @@ export default function SimpleMarketingSystem() {
                   </div>
                 )}
               </div>
+            </div>
 
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                👤 Gán cho *
+                {currentUser.role === 'Member' && <span className="text-xs text-gray-500 ml-2">(Chỉ gán cho bản thân)</span>}
+              </label>
+              <select
+                value={assignee}
+                onChange={(e) => setAssignee(e.target.value)}
+                className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                disabled={currentUser.role === 'Member'}
+              >
+                {assignableUsers.map(user => (
+                  <option key={user.id} value={user.name}>
+                    {user.name} - {user.team} ({user.role})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium mb-2">Độ ưu tiên *</label>
                 <select
@@ -1961,16 +2013,16 @@ export default function SimpleMarketingSystem() {
                   <option value="Khẩn cấp">Khẩn cấp</option>
                 </select>
               </div>
-            </div>
 
-            <div>
-              <label className="block text-sm font-medium mb-2">Deadline *</label>
-              <input
-                type="date"
-                value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
-                className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
+              <div>
+                <label className="block text-sm font-medium mb-2">Deadline *</label>
+                <input
+                  type="date"
+                  value={dueDate}
+                  onChange={(e) => setDueDate(e.target.value)}
+                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
             </div>
 
             <div>
@@ -1999,7 +2051,7 @@ export default function SimpleMarketingSystem() {
                     alert('⚠️ Vui lòng điền đầy đủ thông tin bắt buộc!');
                     return;
                   }
-                  createNewTask(title, platform.join(', '), priority, dueDate, description);
+                  createNewTask(title, platform.join(', '), priority, dueDate, description, assignee);
                 }}
                 className="flex-1 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium"
               >
@@ -2013,13 +2065,13 @@ export default function SimpleMarketingSystem() {
   };
 
   const TaskModal = () => {
-    // Di chuyển tất cả hooks lên đầu component, TRƯỚC bất kỳ early return nào
     const [newComment, setNewComment] = useState('');
     const [newPostLink, setNewPostLink] = useState('');
     const [linkType, setLinkType] = useState('');
     const [showAddLink, setShowAddLink] = useState(false);
+    const [showReassign, setShowReassign] = useState(false);
+    const [newAssignee, setNewAssignee] = useState('');
 
-    // Sau khi đã khai báo hooks, mới kiểm tra điều kiện
     if (!selectedTask) return null;
 
     const getPlatformIcon = (type) => {
@@ -2034,6 +2086,50 @@ export default function SimpleMarketingSystem() {
       return icons[type] || '🔗';
     };
 
+    const reassignTask = async () => {
+      if (!newAssignee) {
+        alert('⚠️ Vui lòng chọn người được gán!');
+        return;
+      }
+
+      try {
+        const assignedUser = allUsers.find(u => u.name === newAssignee);
+        const { error } = await supabase
+          .from('tasks')
+          .update({ 
+            assignee: newAssignee,
+            team: assignedUser.team
+          })
+          .eq('id', selectedTask.id);
+
+        if (error) throw error;
+
+        // Notify new assignee
+        if (newAssignee !== currentUser.name) {
+          addNotification({
+            type: 'assigned',
+            taskId: selectedTask.id,
+            title: '📋 Task được chuyển giao',
+            message: `${currentUser.name} đã chuyển task "${selectedTask.title}" cho bạn`,
+            read: false,
+            createdAt: new Date().toISOString()
+          });
+        }
+
+        setShowReassign(false);
+        alert('✅ Đã chuyển giao task!');
+        await loadTasks();
+        setShowModal(false);
+      } catch (error) {
+        console.error('Error reassigning task:', error);
+        alert('❌ Lỗi khi chuyển giao task!');
+      }
+    };
+
+    const canReassign = currentUser.role === 'Admin' || currentUser.role === 'Manager' || 
+      (currentUser.role === 'Team Lead' && selectedTask.team === currentUser.team);
+
+
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
         <div className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
@@ -2041,9 +2137,20 @@ export default function SimpleMarketingSystem() {
             <div className="flex justify-between items-start">
               <div className="flex-1">
                 <h2 className="text-2xl font-bold mb-2">{selectedTask.title}</h2>
-                <div className="flex gap-2 flex-wrap">
-                  <span className="px-3 py-1 bg-white/20 backdrop-blur-sm rounded-full text-sm">
+                <div className="flex gap-2 flex-wrap items-center">
+                  <span className="px-3 py-1 bg-white/20 backdrop-blur-sm rounded-full text-sm flex items-center gap-2">
                     👤 {selectedTask.assignee}
+                    {canReassign && (
+                      <button
+                        onClick={() => {
+                          setNewAssignee(selectedTask.assignee);
+                          setShowReassign(true);
+                        }}
+                        className="ml-1 px-2 py-0.5 bg-white/30 hover:bg-white/40 rounded text-xs"
+                      >
+                        🔄
+                      </button>
+                    )}
                   </span>
                   <span className="px-3 py-1 bg-white/20 backdrop-blur-sm rounded-full text-sm">
                     🏢 {selectedTask.team}
@@ -2066,6 +2173,42 @@ export default function SimpleMarketingSystem() {
           </div>
 
           <div className="flex-1 overflow-y-auto p-6 space-y-6">
+            {showReassign && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
+                <h4 className="font-bold text-lg mb-3 text-yellow-900">🔄 Chuyển Giao Task</h4>
+                <div className="space-y-3">
+                  <select
+                    value={newAssignee}
+                    onChange={(e) => setNewAssignee(e.target.value)}
+                    className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                  >
+                    {allUsers
+                      .filter(u => currentUser.role === 'Admin' || currentUser.role === 'Manager' || 
+                        (currentUser.role === 'Team Lead' && u.team === currentUser.team))
+                      .map(user => (
+                        <option key={user.id} value={user.name}>
+                          {user.name} - {user.team} ({user.role})
+                        </option>
+                      ))}
+                  </select>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setShowReassign(false)}
+                      className="flex-1 px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg font-medium"
+                    >
+                      Hủy
+                    </button>
+                    <button
+                      onClick={reassignTask}
+                      className="flex-1 px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg font-medium"
+                    >
+                      ✅ Chuyển Giao
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div>
               <h4 className="text-lg font-bold mb-3 flex items-center gap-2">
                 🔗 Links Đã Đăng
