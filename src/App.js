@@ -3568,23 +3568,6 @@ export default function SimpleMarketingSystem() {
               >
                 Đóng
               </button>
-              <button
-                onClick={() => {
-                  setPrefillJobData({
-                    title: selectedTask.title,
-                    customerName: '',
-                    customerPhone: '',
-                    address: '',
-                    equipment: selectedTask.description || '',
-                    scheduledDate: selectedTask.dueDate || ''
-                  });
-                  setShowModal(false);
-                  setShowCreateJobModal(true);
-                }}
-                className="px-6 py-3 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-medium"
-              >
-                🔧 Giao Kỹ Thuật
-              </button>
               {currentUser && (currentUser.role === 'Manager' || selectedTask.assignee === currentUser.name) && (
                 <button
                   onClick={() => {
