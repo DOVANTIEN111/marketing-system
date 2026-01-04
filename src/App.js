@@ -979,6 +979,9 @@ export default function SimpleMarketingSystem() {
   };
 
   const JobDetailModal = () => {
+    const [showReassignModal, setShowReassignModal] = useState(false);
+    const [newTechnicians, setNewTechnicians] = useState([]);
+
     if (!selectedJob) return null;
 
     const updateJobStatus = async (newStatus) => {
@@ -995,6 +998,53 @@ export default function SimpleMarketingSystem() {
       } catch (error) {
         console.error('Error updating job status:', error);
         alert('❌ Lỗi khi cập nhật trạng thái!');
+      }
+    };
+
+    const updateJobTechnicians = async (technicians) => {
+      try {
+        const { error } = await supabase
+          .from('technical_jobs')
+          .update({ technicians })
+          .eq('id', selectedJob.id);
+        
+        if (error) throw error;
+        
+        // Notify new technicians
+        technicians.forEach(techName => {
+          if (!selectedJob.technicians.includes(techName) && techName !== currentUser.name) {
+            addNotification({
+              type: 'assigned',
+              taskId: null,
+              title: '🔧 Công việc mới',
+              message: `Bạn được gán vào công việc: "${selectedJob.title}"`,
+              read: false,
+              createdAt: new Date().toISOString()
+            });
+          }
+        });
+        
+        alert('✅ Đã cập nhật kỹ thuật viên!');
+        await loadTechnicalJobs();
+        setSelectedJob({ ...selectedJob, technicians });
+        setShowReassignModal(false);
+      } catch (error) {
+        console.error('Error updating technicians:', error);
+        alert('❌ Lỗi khi cập nhật kỹ thuật viên!');
+      }
+    };
+
+    const getTechnicalUsers = () => {
+      return allUsers.filter(u => 
+        u.departments && u.departments.includes('technical')
+      );
+    };
+
+    const toggleTechnician = (techName) => {
+      if (newTechnicians.includes(techName)) {
+        setNewTechnicians(newTechnicians.filter(t => t !== techName));
+      } else {
+        setNewTechnicians([...newTechnicians, techName]);
       }
     };
 
@@ -1060,8 +1110,21 @@ export default function SimpleMarketingSystem() {
             <div className="bg-orange-50 p-4 rounded-lg">
               <h3 className="font-bold mb-3 text-lg">📅 Lịch hẹn</h3>
               <div className="space-y-2 text-sm">
-                <div>
-                  <strong>Kỹ thuật viên:</strong> {selectedJob.technicians ? selectedJob.technicians.join(', ') : selectedJob.technician}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <strong>Kỹ thuật viên:</strong> {selectedJob.technicians ? selectedJob.technicians.join(', ') : selectedJob.technician}
+                  </div>
+                  {(currentUser.role === 'Admin' || (currentUser.departments && currentUser.departments.includes('sales'))) && (
+                    <button
+                      onClick={() => {
+                        setNewTechnicians(selectedJob.technicians || []);
+                        setShowReassignModal(true);
+                      }}
+                      className="px-3 py-1 bg-orange-600 hover:bg-orange-700 text-white rounded text-xs font-medium"
+                    >
+                      ✏️ Thay Đổi
+                    </button>
+                  )}
                 </div>
                 <div><strong>Ngày:</strong> {selectedJob.scheduledDate}</div>
                 <div><strong>Giờ:</strong> {selectedJob.scheduledTime || 'Chưa xác định'}</div>
@@ -1133,6 +1196,65 @@ export default function SimpleMarketingSystem() {
             </button>
           </div>
         </div>
+
+        {/* Reassign Technicians Modal */}
+        {showReassignModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl max-w-md w-full">
+              <div className="p-6 border-b bg-gradient-to-r from-orange-500 to-red-600 text-white">
+                <h2 className="text-2xl font-bold">👥 Thay Đổi Kỹ Thuật Viên</h2>
+                <p className="text-sm mt-1 opacity-90">{selectedJob.title}</p>
+              </div>
+
+              <div className="p-6 space-y-3">
+                <p className="text-sm text-gray-600 mb-3">
+                  Chọn kỹ thuật viên mới cho công việc này:
+                </p>
+
+                <div className="border rounded-lg p-3 space-y-2 max-h-60 overflow-y-auto">
+                  {getTechnicalUsers().map(user => (
+                    <label key={user.id} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-2 rounded">
+                      <input
+                        type="checkbox"
+                        checked={newTechnicians.includes(user.name)}
+                        onChange={() => toggleTechnician(user.name)}
+                        className="w-4 h-4 text-orange-600"
+                      />
+                      <span className="text-sm">{user.name} - {user.team}</span>
+                    </label>
+                  ))}
+                </div>
+
+                {newTechnicians.length === 0 && (
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm text-yellow-700">
+                    ⚠️ Vui lòng chọn ít nhất 1 kỹ thuật viên
+                  </div>
+                )}
+              </div>
+
+              <div className="p-6 border-t bg-gray-50 flex gap-3">
+                <button
+                  onClick={() => setShowReassignModal(false)}
+                  className="flex-1 px-6 py-3 bg-gray-200 hover:bg-gray-300 rounded-lg font-medium"
+                >
+                  Hủy
+                </button>
+                <button
+                  onClick={() => {
+                    if (newTechnicians.length === 0) {
+                      alert('⚠️ Vui lòng chọn ít nhất 1 kỹ thuật viên!');
+                      return;
+                    }
+                    updateJobTechnicians(newTechnicians);
+                  }}
+                  className="flex-1 px-6 py-3 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-medium"
+                >
+                  ✅ Lưu
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   };
