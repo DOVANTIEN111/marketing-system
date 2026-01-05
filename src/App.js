@@ -1634,6 +1634,7 @@ export default function SimpleMarketingSystem() {
   const TasksView = () => {
     const [filterTeam, setFilterTeam] = useState('all');
     const [filterStatus, setFilterStatus] = useState('all');
+    const [filterAssignee, setFilterAssignee] = useState('all');
     const [dateFilter, setDateFilter] = useState('all');
     const [customStartDate, setCustomStartDate] = useState('');
     const [customEndDate, setCustomEndDate] = useState('');
@@ -1677,6 +1678,7 @@ export default function SimpleMarketingSystem() {
     const filteredTasks = visibleTasks.filter(t => {
       if (filterTeam !== 'all' && t.team !== filterTeam) return false;
       if (filterStatus !== 'all' && t.status !== filterStatus) return false;
+      if (filterAssignee !== 'all' && t.assignee !== filterAssignee) return false;
       
       // Date filter
       if (dateFilter !== 'all') {
@@ -1756,6 +1758,19 @@ export default function SimpleMarketingSystem() {
                 <option value="Đã Duyệt">Đã Duyệt</option>
                 <option value="Đang Làm">Đang Làm</option>
                 <option value="Hoàn Thành">Hoàn Thành</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-2 block">Nhân viên</label>
+              <select
+                value={filterAssignee}
+                onChange={(e) => setFilterAssignee(e.target.value)}
+                className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="all">Tất cả</option>
+                {Array.from(new Set(visibleTasks.map(t => t.assignee))).sort().map(assignee => (
+                  <option key={assignee} value={assignee}>{assignee}</option>
+                ))}
               </select>
             </div>
           </div>
