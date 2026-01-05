@@ -986,6 +986,25 @@ export default function SimpleMarketingSystem() {
     if (!selectedJob) return null;
 
     const updateJobStatus = async (newStatus) => {
+      // Block nếu status hiện tại đã lock
+      if (selectedJob.status === 'Hoàn thành' || selectedJob.status === 'Hủy') {
+        alert('⚠️ Không thể thay đổi trạng thái!\n\nCông việc đã ' + 
+              (selectedJob.status === 'Hoàn thành' ? 'hoàn thành' : 'bị hủy') + 
+              ' và đã bị khóa.');
+        return;
+      }
+
+      // Confirm khi chuyển sang status cuối
+      if (newStatus === 'Hoàn thành' || newStatus === 'Hủy') {
+        const message = newStatus === 'Hoàn thành' 
+          ? '✅ Xác nhận hoàn thành công việc?\n\n⚠️ Sau khi hoàn thành, bạn KHÔNG THỂ thay đổi trạng thái nữa!'
+          : '❌ Xác nhận hủy công việc?\n\n⚠️ Sau khi hủy, bạn KHÔNG THỂ thay đổi trạng thái nữa!';
+        
+        if (!window.confirm(message)) {
+          return;
+        }
+      }
+
       try {
         const { error } = await supabase
           .from('technical_jobs')
@@ -996,6 +1015,12 @@ export default function SimpleMarketingSystem() {
         
         await loadTechnicalJobs();
         setSelectedJob({ ...selectedJob, status: newStatus });
+        
+        // Thông báo thành công
+        if (newStatus === 'Hoàn thành' || newStatus === 'Hủy') {
+          alert('✅ Đã ' + (newStatus === 'Hoàn thành' ? 'hoàn thành' : 'hủy') + 
+                ' công việc!\n\n🔒 Trạng thái đã bị khóa và không thể thay đổi.');
+        }
       } catch (error) {
         console.error('Error updating job status:', error);
         alert('❌ Lỗi khi cập nhật trạng thái!');
@@ -1147,32 +1172,45 @@ export default function SimpleMarketingSystem() {
             {/* Change Status */}
             <div className="border-t pt-4">
               <h3 className="font-bold mb-3">🔄 Thay đổi trạng thái</h3>
-              <div className="flex gap-2 flex-wrap">
-                <button
-                  onClick={() => updateJobStatus('Chờ XN')}
-                  className="px-4 py-2 bg-yellow-100 text-yellow-800 rounded-lg hover:bg-yellow-200 font-medium"
-                >
-                  Chờ XN
-                </button>
-                <button
-                  onClick={() => updateJobStatus('Đang làm')}
-                  className="px-4 py-2 bg-blue-100 text-blue-800 rounded-lg hover:bg-blue-200 font-medium"
-                >
-                  Đang làm
-                </button>
-                <button
-                  onClick={() => updateJobStatus('Hoàn thành')}
-                  className="px-4 py-2 bg-green-100 text-green-800 rounded-lg hover:bg-green-200 font-medium"
-                >
-                  Hoàn thành
-                </button>
-                <button
-                  onClick={() => updateJobStatus('Hủy')}
-                  className="px-4 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 font-medium"
-                >
-                  Hủy
-                </button>
-              </div>
+              
+              {(selectedJob.status === 'Hoàn thành' || selectedJob.status === 'Hủy') ? (
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                  <div className="flex items-center gap-2 text-gray-600">
+                    <span className="text-xl">🔒</span>
+                    <span className="font-medium">Trạng thái đã khóa - Không thể thay đổi</span>
+                  </div>
+                  <div className="text-sm text-gray-500 mt-1">
+                    Công việc đã {selectedJob.status === 'Hoàn thành' ? 'hoàn thành' : 'bị hủy'} và không thể thay đổi trạng thái.
+                  </div>
+                </div>
+              ) : (
+                <div className="flex gap-2 flex-wrap">
+                  <button
+                    onClick={() => updateJobStatus('Chờ XN')}
+                    className="px-4 py-2 bg-yellow-100 text-yellow-800 rounded-lg hover:bg-yellow-200 font-medium"
+                  >
+                    Chờ XN
+                  </button>
+                  <button
+                    onClick={() => updateJobStatus('Đang làm')}
+                    className="px-4 py-2 bg-blue-100 text-blue-800 rounded-lg hover:bg-blue-200 font-medium"
+                  >
+                    Đang làm
+                  </button>
+                  <button
+                    onClick={() => updateJobStatus('Hoàn thành')}
+                    className="px-4 py-2 bg-green-100 text-green-800 rounded-lg hover:bg-green-200 font-medium"
+                  >
+                    Hoàn thành
+                  </button>
+                  <button
+                    onClick={() => updateJobStatus('Hủy')}
+                    className="px-4 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 font-medium"
+                  >
+                    Hủy
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
