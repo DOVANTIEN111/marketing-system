@@ -652,7 +652,8 @@ export default function SimpleMarketingSystem() {
     if (currentUser.role === 'Admin' || currentUser.role === 'Manager') {
       return tasks; // Admin & Manager thấy TẤT CẢ
     } else if (currentUser.role === 'Team Lead') {
-      return tasks.filter(t => t.team === currentUser.team);
+      const userTeams = currentUser.teams || [currentUser.team].filter(Boolean);
+      return tasks.filter(t => userTeams.includes(t.team));
     } else {
       return tasks.filter(t => t.assignee === currentUser.name);
     }
@@ -2597,6 +2598,8 @@ export default function SimpleMarketingSystem() {
   const UserManagementView = () => {
     const [showEditUserModal, setShowEditUserModal] = useState(false);
     const [editingUser, setEditingUser] = useState(null);
+    const [showEditTeamsModal, setShowEditTeamsModal] = useState(false);
+    const [editingTeamsUser, setEditingTeamsUser] = useState(null);
 
     if (currentUser?.role !== 'Admin') {
       return (
@@ -2656,13 +2659,22 @@ export default function SimpleMarketingSystem() {
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-600">{user.email}</td>
                   <td className="px-6 py-4">
-                    <span className={`px-3 py-1 rounded-full text-sm ${
-                      user.team === 'Content' ? 'bg-blue-100 text-blue-700' :
-                      user.team === 'Design' ? 'bg-purple-100 text-purple-700' :
-                      'bg-green-100 text-green-700'
-                    }`}>
-                      {user.team}
-                    </span>
+                    <div className="flex gap-1 flex-wrap">
+                      {(user.teams || [user.team].filter(Boolean)).map((team, idx) => (
+                        <span key={idx} className={`px-2 py-1 rounded-full text-xs ${
+                          team === 'Content' ? 'bg-blue-100 text-blue-700' :
+                          team === 'Kỹ Thuật' ? 'bg-orange-100 text-orange-700' :
+                          team === 'Sale' ? 'bg-green-100 text-green-700' :
+                          team === 'Design' ? 'bg-purple-100 text-purple-700' :
+                          'bg-gray-100 text-gray-700'
+                        }`}>
+                          {team}
+                        </span>
+                      ))}
+                      {(!user.teams && !user.team) && (
+                        <span className="text-xs text-gray-400">Chưa có team</span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex gap-1 flex-wrap">
@@ -2718,6 +2730,15 @@ export default function SimpleMarketingSystem() {
                         className="px-3 py-1 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg text-sm font-medium"
                       >
                         ✏️ Bộ Phận
+                      </button>
+                      <button
+                        onClick={() => {
+                          setEditingTeamsUser(user);
+                          setShowEditTeamsModal(true);
+                        }}
+                        className="px-3 py-1 bg-purple-100 hover:bg-purple-200 text-purple-700 rounded-lg text-sm font-medium"
+                      >
+                        👥 Teams
                       </button>
                       {user.id !== currentUser.id && user.email !== 'dotien.work@gmail.com' && (
                         <button
@@ -2779,6 +2800,34 @@ export default function SimpleMarketingSystem() {
               } catch (error) {
                 console.error('Error updating departments:', error);
                 alert('❌ Lỗi khi cập nhật bộ phận!');
+              }
+            }}
+          />
+        )}
+
+        {showEditTeamsModal && editingTeamsUser && (
+          <EditUserTeamsModal 
+            user={editingTeamsUser}
+            onClose={() => {
+              setShowEditTeamsModal(false);
+              setEditingTeamsUser(null);
+            }}
+            onSave={async (teams) => {
+              try {
+                const { error } = await supabase
+                  .from('users')
+                  .update({ teams })
+                  .eq('id', editingTeamsUser.id);
+                
+                if (error) throw error;
+                
+                alert('✅ Đã cập nhật teams!');
+                await loadUsers();
+                setShowEditTeamsModal(false);
+                setEditingTeamsUser(null);
+              } catch (error) {
+                console.error('Error updating teams:', error);
+                alert('❌ Lỗi khi cập nhật teams!');
               }
             }}
           />
@@ -2873,6 +2922,86 @@ export default function SimpleMarketingSystem() {
                 onSave(departments);
               }}
               className="flex-1 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium"
+            >
+              ✅ Lưu
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const EditUserTeamsModal = ({ user, onClose, onSave }) => {
+    const [teams, setTeams] = useState(user.teams || [user.team].filter(Boolean));
+
+    const toggleTeam = (team) => {
+      if (teams.includes(team)) {
+        setTeams(teams.filter(t => t !== team));
+      } else {
+        setTeams([...teams, team]);
+      }
+    };
+
+    const AVAILABLE_TEAMS = [
+      { id: 'Content', name: 'Content', color: 'blue', emoji: '✍️' },
+      { id: 'Kỹ Thuật', name: 'Kỹ Thuật', color: 'orange', emoji: '🔧' },
+      { id: 'Sale', name: 'Sale', color: 'green', emoji: '💼' }
+    ];
+
+    return (
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-xl max-w-md w-full">
+          <div className="p-6 border-b bg-gradient-to-r from-purple-500 to-pink-600 text-white">
+            <h2 className="text-2xl font-bold">👥 Chỉnh Sửa Teams</h2>
+            <p className="text-sm mt-1 opacity-90">{user.name}</p>
+          </div>
+
+          <div className="p-6 space-y-4">
+            <p className="text-sm text-gray-600 mb-4">
+              Chọn các team mà user này thuộc về:
+            </p>
+
+            {AVAILABLE_TEAMS.map(team => (
+              <label 
+                key={team.id}
+                className={`flex items-center gap-3 p-4 border-2 rounded-lg cursor-pointer hover:bg-${team.color}-50 transition-colors`}
+              >
+                <input
+                  type="checkbox"
+                  checked={teams.includes(team.id)}
+                  onChange={() => toggleTeam(team.id)}
+                  className={`w-5 h-5 text-${team.color}-600`}
+                />
+                <div className="flex-1">
+                  <div className="font-medium">{team.emoji} {team.name}</div>
+                  <div className="text-sm text-gray-500">Team {team.name}</div>
+                </div>
+              </label>
+            ))}
+
+            {teams.length === 0 && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm text-yellow-700">
+                ⚠️ Vui lòng chọn ít nhất 1 team
+              </div>
+            )}
+          </div>
+
+          <div className="p-6 border-t bg-gray-50 flex gap-3">
+            <button
+              onClick={onClose}
+              className="flex-1 px-6 py-3 bg-gray-200 hover:bg-gray-300 rounded-lg font-medium"
+            >
+              Hủy
+            </button>
+            <button
+              onClick={() => {
+                if (teams.length === 0) {
+                  alert('⚠️ Vui lòng chọn ít nhất 1 team!');
+                  return;
+                }
+                onSave(teams);
+              }}
+              className="flex-1 px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium"
             >
               ✅ Lưu
             </button>
@@ -3069,7 +3198,11 @@ export default function SimpleMarketingSystem() {
       if (currentUser.role === 'Admin' || currentUser.role === 'Manager') {
         return allUsers;
       } else if (currentUser.role === 'Team Lead') {
-        return allUsers.filter(u => u.team === currentUser.team);
+        const userTeams = currentUser.teams || [currentUser.team].filter(Boolean);
+        return allUsers.filter(u => {
+          const targetTeams = u.teams || [u.team].filter(Boolean);
+          return targetTeams.some(t => userTeams.includes(t));
+        });
       } else {
         return allUsers.filter(u => u.name === currentUser.name);
       }
@@ -3275,7 +3408,7 @@ export default function SimpleMarketingSystem() {
     };
 
     const canReassign = currentUser.role === 'Admin' || currentUser.role === 'Manager' || 
-      (currentUser.role === 'Team Lead' && selectedTask.team === currentUser.team);
+      (currentUser.role === 'Team Lead' && (currentUser.teams || [currentUser.team]).filter(Boolean).includes(selectedTask.team));
 
 
     return (
@@ -3331,11 +3464,18 @@ export default function SimpleMarketingSystem() {
                     className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500"
                   >
                     {allUsers
-                      .filter(u => currentUser.role === 'Admin' || currentUser.role === 'Manager' || 
-                        (currentUser.role === 'Team Lead' && u.team === currentUser.team))
+                      .filter(u => {
+                        if (currentUser.role === 'Admin' || currentUser.role === 'Manager') return true;
+                        if (currentUser.role === 'Team Lead') {
+                          const userTeams = currentUser.teams || [currentUser.team].filter(Boolean);
+                          const targetTeams = u.teams || [u.team].filter(Boolean);
+                          return targetTeams.some(t => userTeams.includes(t));
+                        }
+                        return false;
+                      })
                       .map(user => (
                         <option key={user.id} value={user.name}>
-                          {user.name} - {user.team} ({user.role})
+                          {user.name} - {(user.teams || [user.team]).filter(Boolean).join(', ')} ({user.role})
                         </option>
                       ))}
                   </select>
