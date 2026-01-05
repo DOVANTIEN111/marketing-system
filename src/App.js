@@ -18,6 +18,7 @@ export default function SimpleMarketingSystem() {
   const [showJobModal, setShowJobModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showMobileSidebar, setShowMobileSidebar] = useState(false);
+  const [showAdminMenu, setShowAdminMenu] = useState(false);
 
   const [allUsers, setAllUsers] = useState([]);
   const [tasks, setTasks] = useState([]);
@@ -3726,6 +3727,60 @@ export default function SimpleMarketingSystem() {
               </div>
             </div>
             <div className="flex items-center gap-4">
+              {/* Admin Menu Dropdown */}
+              {currentUser.role === 'Admin' && (
+                <div className="relative">
+                  <button
+                    onClick={() => setShowAdminMenu(!showAdminMenu)}
+                    className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition-colors"
+                  >
+                    <span>⚙️ Admin</span>
+                    <svg className={`w-4 h-4 transition-transform ${showAdminMenu ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+                  
+                  {showAdminMenu && (
+                    <>
+                      <div 
+                        className="fixed inset-0 z-10" 
+                        onClick={() => setShowAdminMenu(false)}
+                      />
+                      <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-xl border z-20 overflow-hidden">
+                        <button
+                          onClick={() => {
+                            setActiveModule('marketing');
+                            setActiveTab('automation');
+                            setShowAdminMenu(false);
+                          }}
+                          className="w-full px-4 py-3 text-left hover:bg-purple-50 flex items-center gap-3 border-b"
+                        >
+                          <span className="text-xl">⚙️</span>
+                          <div>
+                            <div className="font-medium">Automation</div>
+                            <div className="text-xs text-gray-500">Tự động hóa công việc</div>
+                          </div>
+                        </button>
+                        <button
+                          onClick={() => {
+                            setActiveModule('marketing');
+                            setActiveTab('users');
+                            setShowAdminMenu(false);
+                          }}
+                          className="w-full px-4 py-3 text-left hover:bg-purple-50 flex items-center gap-3"
+                        >
+                          <span className="text-xl">👥</span>
+                          <div>
+                            <div className="font-medium">Users</div>
+                            <div className="text-xs text-gray-500">Quản lý người dùng</div>
+                          </div>
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+              
               <div className="relative">
                 <button
                   onClick={() => setShowNotifications(!showNotifications)}
@@ -3822,6 +3877,41 @@ export default function SimpleMarketingSystem() {
               )}
             </div>
 
+            {/* Admin Functions */}
+            {currentUser.role === 'Admin' && (
+              <div className="p-4 border-b bg-purple-50">
+                <div className="text-xs font-semibold text-purple-700 mb-2">ADMIN</div>
+                <button
+                  onClick={() => {
+                    setActiveModule('marketing');
+                    setActiveTab('automation');
+                    setShowMobileSidebar(false);
+                  }}
+                  className={`w-full px-4 py-3 rounded-lg mb-2 font-medium text-left ${
+                    activeTab === 'automation'
+                      ? 'bg-purple-600 text-white'
+                      : 'bg-white hover:bg-purple-100'
+                  }`}
+                >
+                  ⚙️ Automation
+                </button>
+                <button
+                  onClick={() => {
+                    setActiveModule('marketing');
+                    setActiveTab('users');
+                    setShowMobileSidebar(false);
+                  }}
+                  className={`w-full px-4 py-3 rounded-lg font-medium text-left ${
+                    activeTab === 'users'
+                      ? 'bg-purple-600 text-white'
+                      : 'bg-white hover:bg-purple-100'
+                  }`}
+                >
+                  👥 Users
+                </button>
+              </div>
+            )}
+
             {/* Tabs Navigation */}
             <div className="p-4">
               <div className="text-xs font-semibold text-gray-500 mb-2">CHỨC NĂNG</div>
@@ -3832,9 +3922,7 @@ export default function SimpleMarketingSystem() {
                 { id: 'calendar', l: '📅 Lịch', show: true },
                 { id: 'report', l: '📈 Báo Cáo', show: true },
                 { id: 'performance', l: '📊 Hiệu Suất', show: true },
-                { id: 'integrations', l: '🔗 Tích Hợp', show: true },
-                { id: 'automation', l: '⚙️ Automation', show: currentUser.role === 'Admin' },
-                { id: 'users', l: '👥 Users', show: currentUser.role === 'Admin' }
+                { id: 'integrations', l: '🔗 Tích Hợp', show: true }
               ] : [
                 { id: 'jobs', l: '📋 Công Việc', show: true },
                 { id: 'integrations', l: '🔗 Tích Hợp', show: true }
@@ -3921,11 +4009,7 @@ export default function SimpleMarketingSystem() {
             { id: 'calendar', l: '📅 Lịch' },
             { id: 'report', l: '📈 Báo Cáo' },
             { id: 'performance', l: '📊 Hiệu Suất' },
-            { id: 'integrations', l: '🔗 Tích Hợp' },
-            ...(currentUser.role === 'Admin' ? [
-              { id: 'automation', l: '⚙️ Automation' },
-              { id: 'users', l: '👥 Users' }
-            ] : [])
+            { id: 'integrations', l: '🔗 Tích Hợp' }
           ] : [
             { id: 'jobs', l: '📋 Công Việc' },
             { id: 'integrations', l: '🔗 Tích Hợp' }
