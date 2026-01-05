@@ -2430,8 +2430,6 @@ export default function SimpleMarketingSystem() {
                     <span>🔧</span>
                     <span>Kỹ thuật viên: {job.technicians ? job.technicians.join(', ') : job.technician}</span>
                   </div>
-                    </div>
-                  )}
                   <div className="flex items-center gap-2">
                     <span>📅</span>
                     <span>{job.scheduledDate} {job.scheduledTime && `- ${job.scheduledTime}`}</span>
