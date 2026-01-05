@@ -677,7 +677,7 @@ export default function SimpleMarketingSystem() {
   }, [visibleTasks]);
 
   const getStatusColor = (s) => {
-    const c = { 'Nháp': 'bg-gray-200 text-gray-700', 'Chờ Duyệt': 'bg-yellow-200 text-yellow-800', 'Đã Duyệt': 'bg-green-200 text-green-800', 'Đang Làm': 'bg-blue-200 text-blue-800', 'Hoàn Thành': 'bg-gray-300 text-gray-600' };
+    const c = { 'Nháp': 'bg-gray-200 text-gray-700', 'Chờ Duyệt': 'bg-yellow-200 text-yellow-800', 'Đã Duyệt': 'bg-green-200 text-green-800', 'Đang Làm': 'bg-orange-200 text-orange-800', 'Hoàn Thành': 'bg-green-500 text-white' };
     return c[s] || 'bg-gray-200';
   };
 
@@ -3568,7 +3568,7 @@ export default function SimpleMarketingSystem() {
               >
                 Đóng
               </button>
-              {currentUser && (currentUser.role === 'Manager' || selectedTask.assignee === currentUser.name) && (
+              {currentUser && (currentUser.role === 'Admin' || currentUser.role === 'Manager' || selectedTask.assignee === currentUser.name) && (
                 <button
                   onClick={() => {
                     if (window.confirm('⚠️ Bạn có chắc chắn muốn xóa task này?\n\nHành động này không thể hoàn tác!')) {
