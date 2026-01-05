@@ -272,7 +272,7 @@ export default function SimpleMarketingSystem() {
           scheduled_date: jobData.scheduledDate,
           scheduled_time: jobData.scheduledTime,
           customer_payment: jobData.customerPayment,
-          created_by: currentUser.name,
+          created_by: jobData.createdBy || currentUser.name,
           status: 'Chờ XN'
         }]);
       
@@ -968,7 +968,8 @@ export default function SimpleMarketingSystem() {
                   technicians,
                   scheduledDate,
                   scheduledTime: scheduledTime || '09:00',
-                  customerPayment: customerPayment ? parseFloat(customerPayment) : 0
+                  customerPayment: customerPayment ? parseFloat(customerPayment) : 0,
+                  createdBy: currentUser.name
                 });
               }}
               className="flex-1 px-6 py-3 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-medium"
@@ -1138,9 +1139,14 @@ export default function SimpleMarketingSystem() {
             <div className="bg-orange-50 p-4 rounded-lg">
               <h3 className="font-bold mb-3 text-lg">📅 Lịch hẹn</h3>
               <div className="space-y-2 text-sm">
+                {selectedJob.createdBy && (
+                  <div>
+                    <strong>📝 Người tạo:</strong> {selectedJob.createdBy}
+                  </div>
+                )}
                 <div className="flex items-center justify-between">
                   <div>
-                    <strong>Kỹ thuật viên:</strong> {selectedJob.technicians ? selectedJob.technicians.join(', ') : selectedJob.technician}
+                    <strong>🔧 Kỹ thuật viên:</strong> {selectedJob.technicians ? selectedJob.technicians.join(', ') : selectedJob.technician}
                   </div>
                   {(currentUser.role === 'Admin' || (currentUser.departments && currentUser.departments.includes('sales'))) && (
                     <button
@@ -2414,14 +2420,16 @@ export default function SimpleMarketingSystem() {
                     <span>📍</span>
                     <span>{job.address}</span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span>🔧</span>
-                    <span>{job.technicians ? job.technicians.join(', ') : job.technician}</span>
-                  </div>
                   {job.createdBy && (
                     <div className="flex items-center gap-2">
-                      <span>👨‍💼</span>
+                      <span>📝</span>
                       <span>Người tạo: {job.createdBy}</span>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2">
+                    <span>🔧</span>
+                    <span>Kỹ thuật viên: {job.technicians ? job.technicians.join(', ') : job.technician}</span>
+                  </div>
                     </div>
                   )}
                   <div className="flex items-center gap-2">
