@@ -1640,10 +1640,12 @@ export default function SimpleMarketingSystem() {
     const [customEndDate, setCustomEndDate] = useState('');
     const [showCustomDate, setShowCustomDate] = useState(false);
 
-    // Helper: Get date range based on filter
+    // Helper: Get date range based on filter (Vietnam timezone UTC+7)
     const getDateRange = () => {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+      // Get current date in Vietnam timezone (UTC+7)
+      const now = new Date();
+      const vietnamTime = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
+      const today = new Date(vietnamTime.getFullYear(), vietnamTime.getMonth(), vietnamTime.getDate());
       
       switch(dateFilter) {
         case 'today': {
@@ -1680,13 +1682,14 @@ export default function SimpleMarketingSystem() {
       if (filterStatus !== 'all' && t.status !== filterStatus) return false;
       if (filterAssignee !== 'all' && t.assignee !== filterAssignee) return false;
       
-      // Date filter
+      // Date filter (Vietnam timezone)
       if (dateFilter !== 'all') {
         const range = getDateRange();
         if (!range) return false;
         
-        const taskDate = new Date(t.dueDate);
-        taskDate.setHours(0, 0, 0, 0);
+        // Parse task date in Vietnam timezone
+        const taskDateStr = new Date(t.dueDate);
+        const taskDate = new Date(taskDateStr.getFullYear(), taskDateStr.getMonth(), taskDateStr.getDate());
         
         if (dateFilter === 'overdue') {
           // Overdue: deadline < today AND not completed
